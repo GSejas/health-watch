@@ -1,0 +1,229 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Health Watch Configuration",
+  "description": "Configuration schema for Health Watch VS Code extension",
+  "type": "object",
+  "properties": {
+    "defaults": {
+      "type": "object",
+      "description": "Default settings for all channels",
+      "properties": {
+        "intervalSec": {
+          "type": "number",
+          "minimum": 10,
+          "default": 60,
+          "description": "Default probe interval in seconds"
+        },
+        "timeoutMs": {
+          "type": "number",
+          "minimum": 1000,
+          "default": 3000,
+          "description": "Default probe timeout in milliseconds"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 1,
+          "default": 3,
+          "description": "Default failure threshold before marking offline"
+        },
+        "jitterPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 10,
+          "description": "Default jitter percentage for probe intervals"
+        }
+      },
+      "additionalProperties": false
+    },
+    "guards": {
+      "type": "object",
+      "description": "Named guard conditions",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": { "const": "netIfUp" },
+                "name": {
+                  "type": "string",
+                  "description": "Network interface name to check"
+                }
+              },
+              "required": ["type", "name"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": { "const": "dns" },
+                "hostname": {
+                  "type": "string",
+                  "description": "Hostname to resolve"
+                }
+              },
+              "required": ["type", "hostname"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "channels": {
+      "type": "array",
+      "description": "Channel definitions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+            "description": "Unique channel identifier"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable channel name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Channel description"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["https", "tcp", "dns", "script"],
+            "description": "Probe type"
+          },
+          "intervalSec": {
+            "type": "number",
+            "minimum": 10,
+            "description": "Override default probe interval"
+          },
+          "timeoutMs": {
+            "type": "number",
+            "minimum": 1000,
+            "description": "Override default probe timeout"
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Override default failure threshold"
+          },
+          "jitterPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "Override default jitter percentage"
+          },
+          "guards": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Guard names that must pass for this channel to be probed"
+          }
+        },
+        "required": ["id", "type"],
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "https" } } },
+            "then": {
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": "HTTPS URL to probe"
+                },
+                "expect": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "array",
+                      "items": { "type": "number" },
+                      "description": "Expected HTTP status codes"
+                    },
+                    "statusRange": {
+                      "type": "array",
+                      "items": { "type": "number" },
+                      "minItems": 2,
+                      "maxItems": 2,
+                      "description": "Expected HTTP status range [min, max]"
+                    },
+                    "headerHas": {
+                      "type": "object",
+                      "patternProperties": {
+                        ".*": { "type": "string" }
+                      },
+                      "description": "Expected headers"
+                    },
+                    "bodyRegex": {
+                      "type": "string",
+                      "description": "Expected body pattern"
+                    },
+                    "treatAuthAsReachable": {
+                      "type": "boolean",
+                      "default": false,
+                      "description": "Treat 401/403 as reachable"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": ["url"]
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "tcp" } } },
+            "then": {
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "pattern": "^[^:]+:[0-9]+$",
+                  "description": "TCP target in format host:port"
+                }
+              },
+              "required": ["target"]
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "dns" } } },
+            "then": {
+              "properties": {
+                "hostname": {
+                  "type": "string",
+                  "description": "Hostname to resolve"
+                },
+                "recordType": {
+                  "type": "string",
+                  "enum": ["A", "AAAA", "CNAME", "MX", "TXT"],
+                  "default": "A",
+                  "description": "DNS record type to query"
+                }
+              },
+              "required": ["hostname"]
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "script" } } },
+            "then": {
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "Shell command to execute"
+                },
+                "shell": {
+                  "type": "string",
+                  "enum": ["cmd", "powershell", "bash"],
+                  "description": "Shell to use for execution"
+                }
+              },
+              "required": ["command"]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

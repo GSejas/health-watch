@@ -1,0 +1,26 @@
+{
+  "channels": [
+    {
+      "id": "high-slo",
+      "name": "High SLO Service",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "sla": {
+        "targetAvailPct": 99.9,
+        "latencyMsP95": 200
+      }
+    },
+    {
+      "id": "low-slo",
+      "name": "Low SLO Service",
+      "type": "https",
+      "url": "https://httpbin.org/status/500",
+      "intervalSec": 30,
+      "sla": {
+        "targetAvailPct": 95,
+        "latencyMsP95": 1000
+      }
+    }
+  ]
+}

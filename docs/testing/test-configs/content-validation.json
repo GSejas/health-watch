@@ -1,0 +1,28 @@
+{
+  "channels": [
+    {
+      "id": "json-response",
+      "name": "JSON Response Validation",
+      "type": "https",
+      "url": "https://httpbin.org/json",
+      "intervalSec": 45,
+      "expectedContent": "slideshow"
+    },
+    {
+      "id": "html-response",
+      "name": "HTML Response Validation",
+      "type": "https",
+      "url": "https://httpbin.org/html",
+      "intervalSec": 60,
+      "expectedContent": "Herman Melville"
+    },
+    {
+      "id": "status-code-check",
+      "name": "Status Code Check",
+      "type": "https",
+      "url": "https://httpbin.org/status/201",
+      "intervalSec": 30,
+      "expectedStatusCode": 201
+    }
+  ]
+}

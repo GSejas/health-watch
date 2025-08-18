@@ -1,0 +1,27 @@
+{
+  "channels": [
+    {
+      "id": "fast-check",
+      "name": "Fast Check (10s)",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 10
+    },
+    {
+      "id": "medium-check",
+      "name": "Medium Check (60s)",
+      "type": "tcp",
+      "hostname": "httpbin.org",
+      "port": 80,
+      "intervalSec": 60
+    },
+    {
+      "id": "slow-check",
+      "name": "Slow Check (300s)",
+      "type": "dns",
+      "hostname": "google.com",
+      "dnsRecordType": "A",
+      "intervalSec": 300
+    }
+  ]
+}

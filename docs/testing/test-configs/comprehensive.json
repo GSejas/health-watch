@@ -1,0 +1,111 @@
+{
+  "defaults": {
+    "intervalSec": 30,
+    "timeoutMs": 5000,
+    "threshold": 3,
+    "jitterPct": 10
+  },
+  "guards": {
+    "internet": {
+      "type": "dns",
+      "hostname": "8.8.8.8"
+    },
+    "vpn": {
+      "type": "netIfUp",
+      "name": "eth0"
+    }
+  },
+  "channels": [
+    {
+      "id": "public-success",
+      "name": "Public Success Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 15,
+      "expectedContent": "status",
+      "expectedStatusCode": 200
+    },
+    {
+      "id": "public-failure",
+      "name": "Public Failure Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 20
+    },
+    {
+      "id": "slow-response",
+      "name": "Slow Response Test",
+      "type": "https",
+      "url": "https://httpbin.org/delay/2",
+      "intervalSec": 45,
+      "timeoutSec": 10
+    },
+    {
+      "id": "tcp-port-check",
+      "name": "TCP Port Check",
+      "type": "tcp",
+      "hostname": "httpbin.org",
+      "port": 80,
+      "intervalSec": 25
+    },
+    {
+      "id": "tcp-port-fail",
+      "name": "TCP Port Fail",
+      "type": "tcp",
+      "hostname": "httpbin.org",
+      "port": 9999,
+      "intervalSec": 60,
+      "timeoutSec": 5
+    },
+    {
+      "id": "dns-resolution",
+      "name": "DNS Resolution Test",
+      "type": "dns",
+      "hostname": "google.com",
+      "dnsRecordType": "A",
+      "intervalSec": 35
+    },
+    {
+      "id": "dns-mx-record",
+      "name": "DNS MX Record Test",
+      "type": "dns",
+      "hostname": "gmail.com",
+      "dnsRecordType": "MX",
+      "intervalSec": 90
+    },
+    {
+      "id": "script-success",
+      "name": "Script Success Test",
+      "type": "script",
+      "script": "echo \"health check passed\"",
+      "intervalSec": 40,
+      "expectedContent": "passed"
+    },
+    {
+      "id": "script-failure",
+      "name": "Script Failure Test",
+      "type": "script",
+      "script": "exit 1",
+      "intervalSec": 120
+    },
+    {
+      "id": "guarded-channel",
+      "name": "Guarded Channel Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "guards": [
+        "internet"
+      ]
+    }
+  ],
+  "reporting": {
+    "autoOpen": true,
+    "includeGraphs": true
+  },
+  "notifications": {
+    "enabled": true,
+    "onFailure": true,
+    "onRecovery": true
+  }
+}

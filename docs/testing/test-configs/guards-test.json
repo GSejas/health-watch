@@ -1,0 +1,60 @@
+{
+  "guards": {
+    "ethernet": {
+      "type": "netIfUp",
+      "name": "eth0"
+    },
+    "wifi": {
+      "type": "netIfUp",
+      "name": "wlan0"
+    },
+    "publicDNS": {
+      "type": "dns",
+      "hostname": "8.8.8.8"
+    },
+    "corporateDNS": {
+      "type": "dns",
+      "hostname": "internal.corp.com"
+    }
+  },
+  "channels": [
+    {
+      "id": "public-no-guards",
+      "name": "Public (No Guards)",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30
+    },
+    {
+      "id": "ethernet-only",
+      "name": "Ethernet Only",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "guards": [
+        "ethernet"
+      ]
+    },
+    {
+      "id": "wifi-only",
+      "name": "WiFi Only",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "guards": [
+        "wifi"
+      ]
+    },
+    {
+      "id": "multiple-guards",
+      "name": "Multiple Guards",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "guards": [
+        "publicDNS",
+        "ethernet"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "channels": [
+    {
+      "id": "invalid-url",
+      "name": "Invalid URL Test",
+      "type": "https",
+      "url": "https://this-domain-does-not-exist-12345.invalid",
+      "intervalSec": 60,
+      "timeoutSec": 5
+    },
+    {
+      "id": "connection-refused",
+      "name": "Connection Refused",
+      "type": "tcp",
+      "hostname": "127.0.0.1",
+      "port": 12345,
+      "intervalSec": 45,
+      "timeoutSec": 3
+    },
+    {
+      "id": "dns-timeout",
+      "name": "DNS Timeout Test",
+      "type": "dns",
+      "hostname": "timeout.invalid.test.domain",
+      "dnsRecordType": "A",
+      "intervalSec": 90
+    },
+    {
+      "id": "script-timeout",
+      "name": "Script Timeout Test",
+      "type": "script",
+      "script": "timeout /t 10",
+      "intervalSec": 60,
+      "timeoutSec": 2
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "channels": [
+    {
+      "id": "test-basic",
+      "name": "Basic Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30
+    }
+  ]
+}

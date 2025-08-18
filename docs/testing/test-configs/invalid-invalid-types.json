@@ -1,0 +1,11 @@
+{
+  "channels": [
+    {
+      "id": "wrong-types",
+      "name": "Wrong Types",
+      "type": "invalid-type",
+      "intervalSec": "not-a-number",
+      "url": 123
+    }
+  ]
+}

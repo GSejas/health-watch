@@ -1,0 +1,9 @@
+{
+  "channels": [
+    {
+      "id": "broken",
+      // This comment breaks JSON
+      "name": "Broken Config"
+    }
+  ]
+}

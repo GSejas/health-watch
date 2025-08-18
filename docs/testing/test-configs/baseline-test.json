@@ -1,0 +1,26 @@
+{
+  "channels": [
+    {
+      "id": "baseline-monitor",
+      "name": "Baseline Monitor",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30,
+      "baseline": {
+        "enabled": true,
+        "baselineIntervalSec": 300
+      }
+    },
+    {
+      "id": "variable-latency",
+      "name": "Variable Latency",
+      "type": "https",
+      "url": "https://httpbin.org/delay/1",
+      "intervalSec": 45,
+      "baseline": {
+        "enabled": true,
+        "baselineIntervalSec": 180
+      }
+    }
+  ]
+}

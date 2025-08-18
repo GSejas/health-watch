@@ -1,0 +1,34 @@
+{
+  "channels": [
+    {
+      "id": "test-https",
+      "name": "HTTPS Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30
+    },
+    {
+      "id": "test-tcp",
+      "name": "TCP Test",
+      "type": "tcp",
+      "hostname": "httpbin.org",
+      "port": 80,
+      "intervalSec": 45
+    },
+    {
+      "id": "test-dns",
+      "name": "DNS Test",
+      "type": "dns",
+      "hostname": "google.com",
+      "dnsRecordType": "A",
+      "intervalSec": 60
+    },
+    {
+      "id": "test-script",
+      "name": "Script Test",
+      "type": "script",
+      "script": "echo 'test successful'",
+      "intervalSec": 90
+    }
+  ]
+}

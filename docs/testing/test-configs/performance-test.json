@@ -1,0 +1,113 @@
+{
+  "defaults": {
+    "intervalSec": 10,
+    "timeoutMs": 3000
+  },
+  "channels": [
+    {
+      "id": "perf-test-1",
+      "name": "Performance Test 1",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 10
+    },
+    {
+      "id": "perf-test-2",
+      "name": "Performance Test 2",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 12
+    },
+    {
+      "id": "perf-test-3",
+      "name": "Performance Test 3",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 14
+    },
+    {
+      "id": "perf-test-4",
+      "name": "Performance Test 4",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 16
+    },
+    {
+      "id": "perf-test-5",
+      "name": "Performance Test 5",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 18
+    },
+    {
+      "id": "perf-test-6",
+      "name": "Performance Test 6",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 20
+    },
+    {
+      "id": "perf-test-7",
+      "name": "Performance Test 7",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 22
+    },
+    {
+      "id": "perf-test-8",
+      "name": "Performance Test 8",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 24
+    },
+    {
+      "id": "perf-test-9",
+      "name": "Performance Test 9",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 26
+    },
+    {
+      "id": "perf-test-10",
+      "name": "Performance Test 10",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 28
+    },
+    {
+      "id": "perf-test-11",
+      "name": "Performance Test 11",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 30
+    },
+    {
+      "id": "perf-test-12",
+      "name": "Performance Test 12",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 32
+    },
+    {
+      "id": "perf-test-13",
+      "name": "Performance Test 13",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 34
+    },
+    {
+      "id": "perf-test-14",
+      "name": "Performance Test 14",
+      "type": "https",
+      "url": "https://httpbin.org/status/404",
+      "intervalSec": 36
+    },
+    {
+      "id": "perf-test-15",
+      "name": "Performance Test 15",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 38
+    }
+  ]
+}
