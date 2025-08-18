@@ -217,6 +217,12 @@ function registerCommands(
             if (incidentsProvider) {
                 incidentsProvider.refresh();
             }
+        }],
+
+        ['healthWatch.resetDemoIncidents', async () => {
+            if (incidentsProvider) {
+                await incidentsProvider.resetDemoIncidents();
+            }
         }]
     ];
     

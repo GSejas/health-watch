@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { StorageManager } from '../storage';
+import { ConfigManager } from '../config';
 
 export interface Incident {
     id: string;
@@ -21,6 +22,7 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
 
     private incidents: Incident[] = [];
     private storageManager = StorageManager.getInstance();
+    private configManager = ConfigManager.getInstance();
 
     constructor() {
         this.loadIncidents();
@@ -121,44 +123,100 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
 
     private generateDemoIncidents(): Incident[] {
         const now = Date.now();
-        return [
-            {
-                id: '1',
-                timestamp: now - 2 * 60 * 60 * 1000, // 2 hours ago
-                title: 'VPN Gateway Timeout',
-                description: 'Multiple timeout errors connecting to corporate VPN gateway',
-                severity: 'critical',
-                type: 'outage',
-                channel: 'corp-gateway',
-                duration: 45,
-                impact: '100% of VPN connections affected',
-                resolved: false
-            },
-            {
-                id: '2',
-                timestamp: now - 6 * 60 * 60 * 1000, // 6 hours ago
-                title: 'Public Site Slow Response',
-                description: 'Elevated response times detected on public website',
-                severity: 'warning',
-                type: 'degraded',
-                channel: 'public-site',
-                duration: 120,
-                impact: '30% slower than baseline',
-                resolved: true,
-                resolvedAt: now - 4 * 60 * 60 * 1000
-            },
-            {
-                id: '3',
-                timestamp: now - 24 * 60 * 60 * 1000, // 1 day ago
-                title: 'Database Connection Recovery',
-                description: 'Database connectivity restored after maintenance window',
+        const historyDays = vscode.workspace.getConfiguration('healthWatch.demo').get<number>('incidentHistoryDays', 7);
+        const historyMs = historyDays * 24 * 60 * 60 * 1000;
+        
+        // Generate incidents spread across the configured time range
+        const incidents: Incident[] = [];
+        
+        // Recent critical incident (last 10% of time range)
+        const recentCutoff = historyMs * 0.1;
+        incidents.push({
+            id: '1',
+            timestamp: now - Math.random() * recentCutoff,
+            title: 'VPN Gateway Timeout',
+            description: 'Multiple timeout errors connecting to corporate VPN gateway',
+            severity: 'critical',
+            type: 'outage',
+            channel: 'corp-gateway',
+            duration: Math.floor(Math.random() * 120) + 15, // 15-135 minutes
+            impact: '100% of VPN connections affected',
+            resolved: false
+        });
+        
+        // Mid-range warning (middle 40% of time range)
+        const midStart = historyMs * 0.3;
+        const midEnd = historyMs * 0.7;
+        const warningTime = now - (midStart + Math.random() * (midEnd - midStart));
+        const warningDuration = Math.floor(Math.random() * 180) + 30; // 30-210 minutes
+        incidents.push({
+            id: '2',
+            timestamp: warningTime,
+            title: 'Public Site Slow Response',
+            description: 'Elevated response times detected on public website',
+            severity: 'warning',
+            type: 'degraded',
+            channel: 'public-site',
+            duration: warningDuration,
+            impact: `${Math.floor(Math.random() * 50) + 20}% slower than baseline`,
+            resolved: true,
+            resolvedAt: warningTime + (warningDuration * 60 * 1000)
+        });
+        
+        // Older recovery incident (last 30% of time range)
+        const oldStart = historyMs * 0.7;
+        const recoveryTime = now - (oldStart + Math.random() * (historyMs - oldStart));
+        incidents.push({
+            id: '3',
+            timestamp: recoveryTime,
+            title: 'Database Connection Recovery',
+            description: 'Database connectivity restored after maintenance window',
+            severity: 'info',
+            type: 'recovery',
+            channel: 'db-port',
+            resolved: true,
+            resolvedAt: recoveryTime + (Math.random() * 60 * 60 * 1000) // Resolved within 1 hour
+        });
+        
+        // Add more incidents for longer time ranges
+        if (historyDays >= 14) {
+            // SSL certificate renewal
+            const sslTime = now - (historyMs * 0.8 + Math.random() * historyMs * 0.15);
+            incidents.push({
+                id: '4',
+                timestamp: sslTime,
+                title: 'SSL Certificate Renewal',
+                description: 'Automated SSL certificate renewal completed successfully',
                 severity: 'info',
-                type: 'recovery',
-                channel: 'db-port',
+                type: 'maintenance',
+                channel: 'public-site',
+                duration: 5,
+                impact: 'Brief service interruption during renewal',
                 resolved: true,
-                resolvedAt: now - 23 * 60 * 60 * 1000
-            }
-        ];
+                resolvedAt: sslTime + (5 * 60 * 1000)
+            });
+        }
+        
+        if (historyDays >= 21) {
+            // Network maintenance
+            const maintenanceTime = now - (historyMs * 0.9 + Math.random() * historyMs * 0.08);
+            incidents.push({
+                id: '5',
+                timestamp: maintenanceTime,
+                title: 'Scheduled Network Maintenance',
+                description: 'Planned network infrastructure maintenance completed',
+                severity: 'warning',
+                type: 'maintenance',
+                channel: 'infrastructure',
+                duration: 240, // 4 hours
+                impact: 'Intermittent connectivity during maintenance window',
+                resolved: true,
+                resolvedAt: maintenanceTime + (240 * 60 * 1000)
+            });
+        }
+        
+        // Sort by timestamp descending (newest first)
+        return incidents.sort((a, b) => b.timestamp - a.timestamp);
     }
 
     private formatIncidentDescription(incident: Incident): string {
@@ -245,6 +303,29 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
 
         if (!description) { return; }
 
+        // Date/Time selection
+        const dateTimeOption = await vscode.window.showQuickPick([
+            { label: 'Now', detail: 'Set incident time to current date/time', value: 'now' },
+            { label: 'Custom Date & Time', detail: 'Choose a specific date and time', value: 'custom' },
+            { label: 'Recent Times', detail: 'Select from common recent timeframes', value: 'recent' }
+        ], {
+            placeHolder: 'When did this incident occur?'
+        });
+
+        if (!dateTimeOption) { return; }
+
+        let timestamp = Date.now();
+
+        if (dateTimeOption.value === 'custom') {
+            const customTime = await this.selectCustomDateTime();
+            if (!customTime) { return; }
+            timestamp = customTime;
+        } else if (dateTimeOption.value === 'recent') {
+            const recentTime = await this.selectRecentTime();
+            if (!recentTime) { return; }
+            timestamp = recentTime;
+        }
+
         const severityOptions = [
             { label: 'Critical', value: 'critical' },
             { label: 'Warning', value: 'warning' },
@@ -272,7 +353,7 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
 
         const newIncident: Incident = {
             id: Date.now().toString(),
-            timestamp: Date.now(),
+            timestamp,
             title,
             description,
             severity: severitySelection.value as Incident['severity'],
@@ -291,7 +372,7 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
         if (!item.incident) { return; }
 
         const incident = item.incident;
-        const actions = ['Edit Title', 'Edit Description', 'Change Severity', 'Change Status', 'Cancel'];
+        const actions = ['Edit Title', 'Edit Description', 'Change Date & Time', 'Change Severity', 'Change Status', 'Cancel'];
         
         const action = await vscode.window.showQuickPick(actions, {
             placeHolder: 'What would you like to edit?'
@@ -317,6 +398,32 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
                 });
                 if (newDescription) {
                     incident.description = newDescription;
+                }
+                break;
+
+            case 'Change Date & Time':
+                const currentDateTime = this.formatDateTime(incident.timestamp);
+                const result = await vscode.window.showInformationMessage(
+                    `Current date/time: ${currentDateTime}\n\nChoose how to update the incident time:`,
+                    'Custom Date & Time',
+                    'Recent Times',
+                    'Cancel'
+                );
+
+                if (!result || result === 'Cancel') { break; }
+
+                let newTimestamp: number | null = null;
+                if (result === 'Custom Date & Time') {
+                    newTimestamp = await this.selectCustomDateTime();
+                } else if (result === 'Recent Times') {
+                    newTimestamp = await this.selectRecentTime();
+                }
+
+                if (newTimestamp) {
+                    incident.timestamp = newTimestamp;
+                    vscode.window.showInformationMessage(
+                        `Incident time updated to ${this.formatDateTime(newTimestamp)}`
+                    );
                 }
                 break;
 
@@ -377,6 +484,140 @@ export class IncidentsTreeProvider implements vscode.TreeDataProvider<IncidentIt
 
     getIncidents(): Incident[] {
         return this.incidents;
+    }
+
+    async resetDemoIncidents(): Promise<void> {
+        const result = await vscode.window.showInformationMessage(
+            'This will replace all current incidents with new demo data. Continue?',
+            'Reset Demo Data',
+            'Cancel'
+        );
+
+        if (result === 'Reset Demo Data') {
+            this.incidents = this.generateDemoIncidents();
+            this.saveIncidents();
+            this.refresh();
+            
+            const historyDays = vscode.workspace.getConfiguration('healthWatch.demo').get<number>('incidentHistoryDays', 7);
+            vscode.window.showInformationMessage(
+                `Demo incidents reset with ${historyDays}-day history. You can change the time range in Settings → Health Watch → Demo Incident History Days.`
+            );
+        }
+    }
+
+    private async selectCustomDateTime(): Promise<number | null> {
+        // Date selection
+        const dateInput = await vscode.window.showInputBox({
+            prompt: 'Enter date (YYYY-MM-DD or MM/DD/YYYY)',
+            placeHolder: 'e.g., 2024-01-15 or 01/15/2024',
+            value: new Date().toISOString().split('T')[0], // Today's date
+            validateInput: (value) => {
+                if (!value) { return 'Date is required'; }
+                
+                // Try parsing different date formats
+                const date = this.parseDate(value);
+                if (!date || isNaN(date.getTime())) {
+                    return 'Invalid date format. Use YYYY-MM-DD or MM/DD/YYYY';
+                }
+                
+                const now = new Date();
+                const maxFuture = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 1 day in future
+                const maxPast = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
+                
+                if (date > maxFuture) {
+                    return 'Date cannot be more than 1 day in the future';
+                }
+                if (date < maxPast) {
+                    return 'Date cannot be more than 1 year in the past';
+                }
+                
+                return null;
+            }
+        });
+
+        if (!dateInput) { return null; }
+
+        // Time selection
+        const timeInput = await vscode.window.showInputBox({
+            prompt: 'Enter time (HH:MM or HH:MM:SS in 24-hour format)',
+            placeHolder: 'e.g., 14:30 or 14:30:45',
+            value: new Date().toLocaleTimeString('en-GB', { hour12: false }).substring(0, 5), // Current time
+            validateInput: (value) => {
+                if (!value) { return 'Time is required'; }
+                
+                const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])(:([0-5][0-9]))?$/;
+                if (!timeRegex.test(value)) {
+                    return 'Invalid time format. Use HH:MM (24-hour format)';
+                }
+                
+                return null;
+            }
+        });
+
+        if (!timeInput) { return null; }
+
+        // Combine date and time
+        const date = this.parseDate(dateInput);
+        const [hours, minutes, seconds = 0] = timeInput.split(':').map(Number);
+        
+        date!.setHours(hours, minutes, seconds, 0);
+        
+        return date!.getTime();
+    }
+
+    private async selectRecentTime(): Promise<number | null> {
+        const now = Date.now();
+        const options = [
+            { label: 'Just now', detail: 'Current time', value: now },
+            { label: '15 minutes ago', detail: this.formatDateTime(now - 15 * 60 * 1000), value: now - 15 * 60 * 1000 },
+            { label: '1 hour ago', detail: this.formatDateTime(now - 60 * 60 * 1000), value: now - 60 * 60 * 1000 },
+            { label: '2 hours ago', detail: this.formatDateTime(now - 2 * 60 * 60 * 1000), value: now - 2 * 60 * 60 * 1000 },
+            { label: '6 hours ago', detail: this.formatDateTime(now - 6 * 60 * 60 * 1000), value: now - 6 * 60 * 60 * 1000 },
+            { label: '12 hours ago', detail: this.formatDateTime(now - 12 * 60 * 60 * 1000), value: now - 12 * 60 * 60 * 1000 },
+            { label: '1 day ago', detail: this.formatDateTime(now - 24 * 60 * 60 * 1000), value: now - 24 * 60 * 60 * 1000 },
+            { label: '2 days ago', detail: this.formatDateTime(now - 2 * 24 * 60 * 60 * 1000), value: now - 2 * 24 * 60 * 60 * 1000 },
+            { label: '1 week ago', detail: this.formatDateTime(now - 7 * 24 * 60 * 60 * 1000), value: now - 7 * 24 * 60 * 60 * 1000 }
+        ];
+
+        const selection = await vscode.window.showQuickPick(options, {
+            placeHolder: 'Select when the incident occurred'
+        });
+
+        return selection ? selection.value : null;
+    }
+
+    private parseDate(dateString: string): Date | null {
+        // Try different date formats
+        const formats = [
+            // ISO format: YYYY-MM-DD
+            /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+            // US format: MM/DD/YYYY
+            /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+            // Alternative: DD/MM/YYYY
+            /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+        ];
+
+        for (const format of formats) {
+            const match = dateString.match(format);
+            if (match) {
+                if (format === formats[0]) {
+                    // ISO format: YYYY-MM-DD
+                    return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+                } else if (format === formats[1]) {
+                    // US format: MM/DD/YYYY
+                    return new Date(parseInt(match[3]), parseInt(match[1]) - 1, parseInt(match[2]));
+                }
+            }
+        }
+
+        // Try native Date parsing as fallback
+        const date = new Date(dateString);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    private formatDateTime(timestamp: number): string {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
 
     dispose(): void {
