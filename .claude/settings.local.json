@@ -13,7 +13,10 @@
       "Bash(node:*)",
       "Bash(find:*)",
       "Bash(npm test)",
-      "Bash(npx vsce package:*)"
+      "Bash(npx vsce package:*)",
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
