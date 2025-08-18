@@ -30,27 +30,37 @@ Create a `.healthwatch.json` file in your workspace root. You can use one of the
 
 ### Quick Start Templates
 
-**Simple Setup** (copy `.healthwatch.json.simple`):
+**Simple Setup** ([`.healthwatch.json.simple`](./.healthwatch.json.simple)) — copy to your workspace for a minimal starter configuration:
 - Basic internet connectivity
 - Popular websites (Google, GitHub)
 - Local development server
 
-**Developer Setup** (copy `.healthwatch.json.developer`):
+**Developer Setup** ([`.healthwatch.json.developer`](./.healthwatch.json.developer)) — copy into `.healthwatch.json` for a developer-focused setup:
 - NPM registry, GitHub, Docker Hub
 - Local API/frontend servers
 - Database and Redis connections
 - Docker daemon and Git status
 
-**Production Setup** (copy `.healthwatch.json.production`):
+**Production Setup** ([`.healthwatch.json.production`](./.healthwatch.json.production)) — production-ready defaults and system checks:
 - Production websites and APIs
 - Database clusters and CDN
 - SSL certificate monitoring
 - System resource monitoring
 
-**Full Template** (copy `.healthwatch.json.template`):
+**Full Template** ([`.healthwatch.json.template`](./.healthwatch.json.template)) — comprehensive example covering all channel types and guards:
 - Comprehensive monitoring setup
 - All channel types with examples
 - Common infrastructure patterns
+
+Quick copy commands:
+
+```powershell
+# Windows (PowerShell)
+Copy-Item .\.healthwatch.json.developer .\.healthwatch.json
+
+# macOS / Linux (bash)
+cp .healthwatch.json.simple .healthwatch.json
+```
 
 ### Manual Configuration
 

@@ -92,7 +92,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["https", "tcp", "dns", "script"],
+            "enum": ["https", "http", "tcp", "dns", "script"],
             "description": "Probe type"
           },
           "intervalSec": {
