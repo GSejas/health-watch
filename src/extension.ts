@@ -6,7 +6,9 @@ import { Scheduler } from './runner/scheduler';
 import { StatusBarManager } from './ui/statusBar';
 import { ChannelTreeProvider } from './ui/treeView';
 import { StatusTreeDataProvider } from './ui/statusTreeView';
+import { IncidentsTreeProvider } from './ui/incidentsTreeView';
 import { NotificationManager } from './ui/notifications';
+import { DashboardManager } from './ui/dashboard';
 import { HealthWatchAPIImpl } from './api';
 import { DataExporter } from './export';
 import { ReportGenerator } from './report';
@@ -29,8 +31,10 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
         const statusBarManager = new StatusBarManager(scheduler);
         const treeProvider = new ChannelTreeProvider(scheduler);
         const notificationManager = new NotificationManager(scheduler);
+        const dashboardManager = new DashboardManager(scheduler);
 
         const statusProvider = new StatusTreeDataProvider(scheduler);
+        const incidentsProvider = new IncidentsTreeProvider();
 
         // Initialize utilities
         const dataExporter = new DataExporter();
@@ -51,8 +55,14 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
             showCollapseAll: false
         });
         
+        // Register incidents tree view
+        const incidentsTreeView = vscode.window.createTreeView('healthWatchIncidents', {
+            treeDataProvider: incidentsProvider,
+            showCollapseAll: false
+        });
+        
         // Register commands
-        registerCommands(context, scheduler, healthWatchAPI, dataExporter, reportGenerator, treeProvider, notificationManager);
+        registerCommands(context, scheduler, healthWatchAPI, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, incidentsProvider);
         
         // Set context for when clauses
         vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
@@ -65,9 +75,12 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
             statusBarManager,
             treeProvider,
             statusProvider,
+            incidentsProvider,
             treeView,
             statusTreeView,
+            incidentsTreeView,
             notificationManager,
+            dashboardManager,
             healthWatchAPI,
             configManager
         );
@@ -90,7 +103,9 @@ function registerCommands(
     dataExporter: DataExporter,
     reportGenerator: ReportGenerator,
     treeProvider: ChannelTreeProvider,
-    notificationManager: NotificationManager
+    notificationManager: NotificationManager,
+    dashboardManager: DashboardManager,
+    incidentsProvider?: IncidentsTreeProvider
 ) {
     const commands: Array<[string, (...args: any[]) => any]> = [
         ['healthWatch.startWatch', async (duration?: string) => {
@@ -170,6 +185,38 @@ function registerCommands(
         
         ['healthWatch.showDetails', () => {
             showDetailsWebview(context, api);
+        }],
+
+        ['healthWatch.openDashboard', async () => {
+            try {
+                await dashboardManager.openDashboard(context);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to open dashboard: ${error}`);
+            }
+        }],
+
+        ['healthWatch.addIncident', async () => {
+            if (incidentsProvider) {
+                await incidentsProvider.addIncident();
+            }
+        }],
+
+        ['healthWatch.editIncident', async (item) => {
+            if (incidentsProvider && item) {
+                await incidentsProvider.editIncident(item);
+            }
+        }],
+
+        ['healthWatch.deleteIncident', async (item) => {
+            if (incidentsProvider && item) {
+                await incidentsProvider.deleteIncident(item);
+            }
+        }],
+
+        ['healthWatch.refreshIncidents', () => {
+            if (incidentsProvider) {
+                incidentsProvider.refresh();
+            }
         }]
     ];
     

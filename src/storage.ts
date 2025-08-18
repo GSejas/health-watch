@@ -308,4 +308,17 @@ export class StorageManager {
             recentWatches: this.watchHistory.filter(w => w.startTime >= since)
         };
     }
+
+    // Custom data storage for extensions like incidents
+    getCustomData(key: string): any {
+        return this.context.globalState.get(`healthWatch.custom.${key}`);
+    }
+
+    setCustomData(key: string, data: any): Thenable<void> {
+        return this.context.globalState.update(`healthWatch.custom.${key}`, data);
+    }
+
+    removeCustomData(key: string): Thenable<void> {
+        return this.context.globalState.update(`healthWatch.custom.${key}`, undefined);
+    }
 }

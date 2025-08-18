@@ -3,6 +3,8 @@
 out/**
 node_modules/**
 src/**
+test/**
+docs/**
 .gitignore
 .yarnrc
 esbuild.js
@@ -12,3 +14,15 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+**.vsix
+**/test-*
+CLAUDE.md
+CONFIGURATION.md
+create-icon.js
+setup-config.sh
+setup-config.ps1
+test-*.json
+test-results/**
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

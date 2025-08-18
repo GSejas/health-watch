@@ -7,6 +7,8 @@ A local-first VS Code extension for monitoring multi-channel connectivity (publi
 - **Multi-channel monitoring**: HTTPS, TCP, DNS, and Script probes
 - **Guard conditions**: Prevent false positives with network interface and DNS checks
 - **Smart baseline tracking**: Automatic anomaly detection
+- **Interactive dashboards**: Real-time monitoring with timeline views, heatmaps, and live activity logs
+- **Incident management**: Track and manage incidents with full CRUD operations
 - **Rich reporting**: Auto-generated Markdown reports with Mermaid diagrams
 - **SLO monitoring**: Track availability targets and performance thresholds
 - **Local-first**: All data stored locally, no telemetry
@@ -94,10 +96,13 @@ This extension contributes the following VS Code settings:
 - `Health Watch: Stop Watch`: End current monitoring session
 - `Health Watch: Run Channel Now`: Execute a single channel probe
 - `Health Watch: Open Last Report`: View the most recent report
+- `Health Watch: Open Dashboard`: Launch interactive monitoring dashboard
+- `Health Watch: Add Incident`: Create a new incident record
+- `Health Watch: Export Data as JSON`: Export monitoring data
 
 ## Requirements
 
-- VS Code 1.74.0 or higher
+- VS Code 1.103.0 or higher
 - Node.js runtime (bundled with VS Code)
 
 ## Known Issues

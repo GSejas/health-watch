@@ -1,6 +1,13 @@
 {
   "channels": [
     {
+      "id": "internet",
+      "name": "Internet Connectivity",
+      "type": "https",
+      "url": "https://8.8.8.8",
+      "intervalSec": 30
+    },
+    {
       "id": "test-basic",
       "name": "Basic Test",
       "type": "https",
