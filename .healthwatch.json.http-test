@@ -1,0 +1,24 @@
+{
+  "channels": [
+    {
+      "id": "http-test",
+      "name": "HTTP Test",
+      "type": "http",
+      "url": "http://httpbin.org/status/200",
+      "intervalSec": 60,
+      "expect": {
+        "status": [200]
+      }
+    },
+    {
+      "id": "https-test", 
+      "name": "HTTPS Test",
+      "type": "https",
+      "url": "https://httpbin.org/status/200",
+      "intervalSec": 60,
+      "expect": {
+        "status": [200]
+      }
+    }
+  ]
+}

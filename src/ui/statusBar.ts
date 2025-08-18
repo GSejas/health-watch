@@ -145,7 +145,7 @@ export class StatusBarManager {
         
         // First try to find by common internet hostnames
         for (const channel of channels) {
-            if (channel.type === 'https' && channel.url) {
+            if ((channel.type === 'https' || channel.type === 'http') && channel.url) {
                 const url = channel.url.toLowerCase();
                 if (internetKeywords.some(keyword => url.includes(keyword))) {
                     return channel;
@@ -153,9 +153,9 @@ export class StatusBarManager {
             }
         }
         
-        // Then try to find any public HTTPS endpoint
+        // Then try to find any public HTTP/HTTPS endpoint
         for (const channel of channels) {
-            if (channel.type === 'https' && channel.url && !channel.url.includes('localhost') && !channel.url.includes('127.0.0.1')) {
+            if ((channel.type === 'https' || channel.type === 'http') && channel.url && !channel.url.includes('localhost') && !channel.url.includes('127.0.0.1')) {
                 return channel;
             }
         }

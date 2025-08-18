@@ -15,7 +15,7 @@
  * @description
  * The configuration system is responsible for:
  * - Loading and validating .healthwatch.json configuration files
- * - Managing channel definitions for different probe types (HTTPS, TCP, DNS, Script)
+ * - Managing channel definitions for different probe types (HTTP/HTTPS, TCP, DNS, Script)
  * - Handling guard definitions for conditional monitoring
  * - Integrating with VS Code workspace settings
  * - Providing real-time configuration updates via file watching
@@ -94,7 +94,7 @@ export interface ChannelDefinition {
     id: string;
     name?: string;
     description?: string;
-    type: 'https' | 'tcp' | 'dns' | 'script';
+    type: 'https' | 'http' | 'tcp' | 'dns' | 'script';
     intervalSec?: number;
     timeoutMs?: number;
     threshold?: number;

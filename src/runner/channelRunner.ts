@@ -137,6 +137,7 @@ export class ChannelRunner extends EventEmitter {
 
         switch (channel.type) {
             case 'https':
+            case 'http':
                 const httpsConfig = this.configManager.getHttpsConfig();
                 return await this.httpsProbe.probe(
                     channelWithDefaults, 
