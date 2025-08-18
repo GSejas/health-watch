@@ -14,7 +14,7 @@ export class ChannelTreeItem extends vscode.TreeItem {
         this.tooltip = this.buildTooltip();
         this.description = this.buildDescription();
         this.iconPath = this.getIcon();
-        this.contextValue = 'channel';
+        this.contextValue = this.getContextValue();
         this.id = channelInfo.id;
     }
 
@@ -81,6 +81,10 @@ export class ChannelTreeItem extends vscode.TreeItem {
             return new vscode.ThemeIcon('debug-pause');
         }
         
+        if (this.channelInfo.isRunning) {
+            return new vscode.ThemeIcon('loading~spin');
+        }
+        
         switch (this.channelInfo.state) {
             case 'online':
                 return new vscode.ThemeIcon('check', new vscode.ThemeColor('testing.iconPassed'));
@@ -91,6 +95,18 @@ export class ChannelTreeItem extends vscode.TreeItem {
             default:
                 return new vscode.ThemeIcon('pulse');
         }
+    }
+
+    private getContextValue(): string {
+        if (this.channelInfo.isPaused) {
+            return 'channel-paused';
+        }
+        
+        if (this.channelInfo.isRunning) {
+            return 'channel-running';
+        }
+        
+        return 'channel-idle';
     }
 }
 
@@ -170,7 +186,8 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
                 state: state?.state || 'unknown',
                 lastLatency: state?.lastSample?.latencyMs,
                 nextProbe: schedule?.nextRun,
-                isPaused: schedule?.isPaused || false
+                isPaused: schedule?.isPaused || false,
+                isRunning: this.scheduler.getChannelRunner().isChannelRunning(channel.id)
             };
             
             return new ChannelTreeItem(channelInfo);
@@ -196,6 +213,12 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
         this.scheduler.resumeChannel(channelId);
         this.refresh();
         vscode.window.showInformationMessage(`Channel '${channelId}' resumed`);
+    }
+
+    stopChannel(channelId: string): void {
+        this.scheduler.stopChannel(channelId);
+        this.refresh();
+        vscode.window.showInformationMessage(`Channel '${channelId}' stopped`);
     }
 
     dispose() {

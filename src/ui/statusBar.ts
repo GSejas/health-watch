@@ -16,7 +16,7 @@ export class StatusBarManager {
             vscode.StatusBarAlignment.Left, 
             100
         );
-        this.statusBarItem.command = 'healthWatch.showDetails';
+        this.statusBarItem.command = 'healthWatch.openDashboard';
         this.setupEventListeners();
         this.updateStatusBar();
         this.startPeriodicUpdates();
@@ -48,44 +48,49 @@ export class StatusBarManager {
     }
 
     private updateStatusBar() {
-        if (!this.configManager.isEnabled()) {
+        if (!this.configManager.isEnabled() || !this.getShowInternetSetting()) {
             this.statusBarItem.hide();
             return;
         }
 
         const channels = this.configManager.getChannels();
-        if (channels.length === 0) {
-            this.statusBarItem.text = '$(pulse) Health Watch: No channels';
-            this.statusBarItem.tooltip = 'No monitoring channels configured';
-            this.statusBarItem.backgroundColor = undefined;
-            this.statusBarItem.show();
-            return;
-        }
-
         const states = this.scheduler.getChannelRunner().getChannelStates();
-        const worstState = this.getWorstState(states);
+        
+        // Focus on internet connectivity - find first internet/public channel
+        const internetChannel = this.findInternetChannel(channels);
+        const internetState = internetChannel ? states.get(internetChannel.id) : null;
+
+        const statusIcon = this.getCustomStatusIcon(internetState?.state || 'unknown');
         const currentWatch = this.storageManager.getCurrentWatch();
 
         let text: string;
         let tooltip: string;
         let backgroundColor: vscode.ThemeColor | undefined;
 
-        if (currentWatch?.isActive) {
-            const remaining = this.formatWatchRemaining(currentWatch);
-            text = `$(eye) Watch: ${remaining} | ${this.getStateIcon(worstState)} ${worstState}`;
-            tooltip = this.buildWatchTooltip(currentWatch, states);
-        } else {
-            text = `${this.getStateIcon(worstState)} Health Watch: ${worstState}`;
-            tooltip = this.buildTooltip(states);
-        }
+        if (internetChannel && internetState) {
+            const latency = internetState.lastSample?.latencyMs ? ` ${internetState.lastSample.latencyMs}ms` : '';
+            
+            if (currentWatch?.isActive) {
+                const remaining = this.formatWatchRemaining(currentWatch);
+                text = `${statusIcon}${latency} Watch: ${remaining}`;
+                tooltip = this.buildInternetTooltip(internetChannel, internetState, currentWatch);
+            } else {
+                text = `${statusIcon}${latency}`;
+                tooltip = this.buildInternetTooltip(internetChannel, internetState);
+            }
 
-        // Set background color for critical states
-        if (worstState === 'offline') {
-            backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-        } else if (worstState === 'unknown') {
-            backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+            // Set background color for critical states
+            if (internetState.state === 'offline') {
+                backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+            } else if (internetState.state === 'unknown') {
+                backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+            } else {
+                backgroundColor = undefined;
+            }
         } else {
-            backgroundColor = undefined;
+            text = `🟡 Internet: Not configured`;
+            tooltip = 'No internet connectivity channel configured\n\nAdd an internet check to .healthwatch.json\n\nClick to open dashboard';
+            backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
         }
 
         this.statusBarItem.text = text;
@@ -118,6 +123,83 @@ export class StatusBarManager {
             case 'unknown': return '$(question)';
             default: return '$(pulse)';
         }
+    }
+
+    private getCustomStatusIcon(state: string): string {
+        const config = vscode.workspace.getConfiguration('healthWatch.statusBar.icons');
+        switch (state) {
+            case 'online': return config.get('online', '🟢');
+            case 'offline': return config.get('offline', '🔴');
+            case 'unknown': return config.get('unknown', '🟡');
+            default: return config.get('unknown', '🟡');
+        }
+    }
+
+    private getShowInternetSetting(): boolean {
+        return vscode.workspace.getConfiguration('healthWatch.statusBar').get('showInternet', true);
+    }
+
+    private findInternetChannel(channels: any[]): any | null {
+        // Look for internet/public connectivity channels
+        const internetKeywords = ['internet', 'public', 'google', 'cloudflare', '8.8.8.8', '1.1.1.1', 'connectivity'];
+        
+        // First try to find by common internet hostnames
+        for (const channel of channels) {
+            if (channel.type === 'https' && channel.url) {
+                const url = channel.url.toLowerCase();
+                if (internetKeywords.some(keyword => url.includes(keyword))) {
+                    return channel;
+                }
+            }
+        }
+        
+        // Then try to find any public HTTPS endpoint
+        for (const channel of channels) {
+            if (channel.type === 'https' && channel.url && !channel.url.includes('localhost') && !channel.url.includes('127.0.0.1')) {
+                return channel;
+            }
+        }
+        
+        // Finally, return the first channel if available
+        return channels.length > 0 ? channels[0] : null;
+    }
+
+    private buildInternetTooltip(channel: any, state: any, watch?: any): string {
+        const lines: string[] = [];
+        
+        if (watch?.isActive) {
+            lines.push('Health Watch - Active Session');
+            const remaining = this.formatWatchRemaining(watch);
+            lines.push(`Duration: ${remaining}`);
+            lines.push(`Started: ${new Date(watch.startTime).toLocaleTimeString()}`);
+        } else {
+            lines.push('Health Watch - Internet Status');
+        }
+        
+        lines.push('');
+        lines.push(`Channel: ${channel.name || channel.id}`);
+        lines.push(`Type: ${channel.type.toUpperCase()}`);
+        
+        if (channel.url) {
+            lines.push(`Target: ${channel.url}`);
+        } else if (channel.target) {
+            lines.push(`Target: ${channel.target}`);
+        }
+        
+        lines.push(`Status: ${state.state.toUpperCase()}`);
+        
+        if (state.lastSample?.latencyMs) {
+            lines.push(`Latency: ${state.lastSample.latencyMs}ms`);
+        }
+        
+        if (state.lastSample?.error) {
+            lines.push(`Last Error: ${state.lastSample.error}`);
+        }
+        
+        lines.push('');
+        lines.push('Click to open dashboard');
+        
+        return lines.join('\n');
     }
 
     private formatWatchRemaining(watch: any): string {

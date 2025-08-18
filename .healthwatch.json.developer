@@ -1,0 +1,168 @@
+{
+    "defaults": {
+        "intervalSec": 45,
+        "timeoutMs": 3000,
+        "threshold": 2,
+        "jitterPct": 15
+    },
+    "guards": {
+        "internet": {
+            "type": "dns",
+            "hostname": "1.1.1.1"
+        },
+        "docker": {
+            "type": "netIfUp",
+            "name": "docker0"
+        }
+    },
+    "channels": [
+        {
+            "id": "npm-registry",
+            "name": "NPM Registry",
+            "description": "NPM package registry availability",
+            "type": "https",
+            "url": "https://registry.npmjs.org",
+            "intervalSec": 300,
+            "expect": {
+                "status": [
+                    200
+                ]
+            }
+        },
+        {
+            "id": "github",
+            "name": "GitHub",
+            "description": "GitHub main site",
+            "type": "https",
+            "url": "https://github.com",
+            "intervalSec": 180,
+            "expect": {
+                "status": [
+                    200
+                ]
+            }
+        },
+        {
+            "id": "docker-hub",
+            "name": "Docker Hub",
+            "description": "Docker Hub registry",
+            "type": "https",
+            "url": "https://hub.docker.com",
+            "intervalSec": 600,
+            "expect": {
+                "status": [
+                    200
+                ]
+            }
+        },
+        {
+            "id": "local-api",
+            "name": "Local API Server",
+            "description": "Local development API",
+            "type": "https",
+            "url": "http://localhost:8080/health",
+            "intervalSec": 30,
+            "timeoutMs": 2000,
+            "threshold": 1,
+            "expect": {
+                "status": [
+                    200,
+                    404
+                ]
+            }
+        },
+        {
+            "id": "local-frontend",
+            "name": "Local Frontend",
+            "description": "Local development frontend",
+            "type": "https",
+            "url": "http://localhost:3000",
+            "intervalSec": 30,
+            "timeoutMs": 2000,
+            "threshold": 1,
+            "expect": {
+                "status": [
+                    200,
+                    404
+                ]
+            }
+        },
+        {
+            "id": "database-local",
+            "name": "Local Database",
+            "description": "Local PostgreSQL database",
+            "type": "tcp",
+            "target": "localhost:5432",
+            "intervalSec": 60,
+            "timeoutMs": 3000
+        },
+        {
+            "id": "redis-local",
+            "name": "Local Redis",
+            "description": "Local Redis cache",
+            "type": "tcp",
+            "target": "localhost:6379",
+            "intervalSec": 90,
+            "timeoutMs": 2000
+        },
+        {
+            "id": "docker-daemon",
+            "name": "Docker Daemon",
+            "description": "Docker daemon availability",
+            "type": "script",
+            "command": "docker info",
+            "shell": "bash",
+            "intervalSec": 120,
+            "timeoutMs": 5000,
+            "guards": [
+                "docker"
+            ]
+        },
+        {
+            "id": "git-status",
+            "name": "Git Repository",
+            "description": "Git repository status check",
+            "type": "script",
+            "command": "git status --porcelain",
+            "shell": "bash",
+            "intervalSec": 300,
+            "timeoutMs": 3000
+        },
+        {
+            "id": "node-version",
+            "name": "Node.js Version",
+            "description": "Node.js runtime availability",
+            "type": "script",
+            "command": "node --version",
+            "shell": "bash",
+            "intervalSec": 600,
+            "timeoutMs": 2000
+        },
+        {
+            "id": "internet",
+            "name": "Internet",
+            "url": "https://8.8.8.8"
+        },
+        {
+            "id": "dev-server",
+            "name": "Dev Server",
+            "url": "http://localhost:3000"
+        },
+        {
+            "id": "api",
+            "name": "API",
+            "url": "http://localhost:8080/health"
+        },
+        {
+            "id": "database",
+            "name": "Database",
+            "type": "tcp",
+            "target": "localhost:5432"
+        },
+        {
+            "id": "staging",
+            "name": "Staging",
+            "url": "https://staging-api.myapp.com/health"
+        }
+    ]
+}

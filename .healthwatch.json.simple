@@ -1,0 +1,60 @@
+{
+  "defaults": {
+    "intervalSec": 60,
+    "timeoutMs": 5000,
+    "threshold": 3,
+    "jitterPct": 10
+  },
+  "guards": {
+    "internet": {
+      "type": "dns",
+      "hostname": "8.8.8.8"
+    }
+  },
+  "channels": [
+    {
+      "id": "internet-check",
+      "name": "Internet Connectivity",
+      "description": "Basic internet connectivity via Google DNS",
+      "type": "dns",
+      "hostname": "8.8.8.8",
+      "recordType": "A",
+      "intervalSec": 30
+    },
+    {
+      "id": "google-website",
+      "name": "Google.com",
+      "description": "Google website availability",
+      "type": "https",
+      "url": "https://www.google.com",
+      "intervalSec": 60,
+      "expect": {
+        "status": [200, 301, 302]
+      }
+    },
+    {
+      "id": "github-api",
+      "name": "GitHub API",
+      "description": "GitHub API status",
+      "type": "https",
+      "url": "https://api.github.com",
+      "intervalSec": 120,
+      "expect": {
+        "status": [200]
+      }
+    },
+    {
+      "id": "local-server",
+      "name": "Local Server",
+      "description": "Local development server (localhost:3000)",
+      "type": "https",
+      "url": "http://localhost:3000",
+      "intervalSec": 30,
+      "timeoutMs": 2000,
+      "threshold": 1,
+      "expect": {
+        "status": [200, 404]
+      }
+    }
+  ]
+}

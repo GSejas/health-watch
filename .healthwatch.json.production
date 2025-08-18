@@ -1,0 +1,144 @@
+{
+  "defaults": {
+    "intervalSec": 120,
+    "timeoutMs": 8000,
+    "threshold": 2,
+    "jitterPct": 5
+  },
+  "guards": {
+    "internet": {
+      "type": "dns",
+      "hostname": "8.8.8.8"
+    },
+    "vpn": {
+      "type": "dns",
+      "hostname": "internal.company.com"
+    }
+  },
+  "channels": [
+    {
+      "id": "production-web",
+      "name": "Production Website",
+      "description": "Main production website",
+      "type": "https",
+      "url": "https://www.company.com",
+      "intervalSec": 60,
+      "expect": {
+        "status": [200, 301, 302],
+        "bodyRegex": ".*"
+      }
+    },
+    {
+      "id": "production-api",
+      "name": "Production API",
+      "description": "Main production API",
+      "type": "https",
+      "url": "https://api.company.com/health",
+      "intervalSec": 30,
+      "expect": {
+        "status": [200],
+        "bodyRegex": "ok|healthy|up"
+      }
+    },
+    {
+      "id": "cdn-primary",
+      "name": "Primary CDN",
+      "description": "Primary CDN endpoint",
+      "type": "https",
+      "url": "https://cdn.company.com/favicon.ico",
+      "intervalSec": 180,
+      "expect": {
+        "status": [200, 304]
+      }
+    },
+    {
+      "id": "database-primary",
+      "name": "Primary Database",
+      "description": "Primary database connection",
+      "type": "tcp",
+      "target": "db-primary.company.com:5432",
+      "intervalSec": 90,
+      "guards": ["vpn"]
+    },
+    {
+      "id": "database-replica",
+      "name": "Database Replica",
+      "description": "Read replica database",
+      "type": "tcp",
+      "target": "db-replica.company.com:5432",
+      "intervalSec": 180,
+      "guards": ["vpn"]
+    },
+    {
+      "id": "cache-cluster",
+      "name": "Cache Cluster",
+      "description": "Redis cache cluster",
+      "type": "tcp",
+      "target": "cache.company.com:6379",
+      "intervalSec": 120,
+      "guards": ["vpn"]
+    },
+    {
+      "id": "monitoring-grafana",
+      "name": "Grafana Dashboard",
+      "description": "Grafana monitoring dashboard",
+      "type": "https",
+      "url": "https://grafana.company.com/api/health",
+      "intervalSec": 300,
+      "guards": ["vpn"],
+      "expect": {
+        "status": [200],
+        "treatAuthAsReachable": true
+      }
+    },
+    {
+      "id": "backup-service",
+      "name": "Backup Service",
+      "description": "Backup service endpoint",
+      "type": "tcp",
+      "target": "backup.company.com:22",
+      "intervalSec": 600,
+      "timeoutMs": 15000
+    },
+    {
+      "id": "ssl-cert-check",
+      "name": "SSL Certificate",
+      "description": "SSL certificate expiration check",
+      "type": "script",
+      "command": "openssl s_client -connect www.company.com:443 -servername www.company.com < /dev/null 2>/dev/null | openssl x509 -noout -dates",
+      "shell": "bash",
+      "intervalSec": 86400,
+      "timeoutMs": 10000
+    },
+    {
+      "id": "disk-space-critical",
+      "name": "Critical Disk Space",
+      "description": "Critical disk space monitoring",
+      "type": "script",
+      "command": "df -h /var/log | tail -1 | awk '{usage=+$5} END {if(usage > 85) exit 1; else exit 0}'",
+      "shell": "bash",
+      "intervalSec": 300,
+      "timeoutMs": 5000
+    },
+    {
+      "id": "memory-usage",
+      "name": "Memory Usage",
+      "description": "System memory usage check",
+      "type": "script",
+      "command": "free | awk 'FNR==2{printf \"%.0f\", $3/($3+$4)*100}' | awk '{if($1 > 90) exit 1; else exit 0}'",
+      "shell": "bash",
+      "intervalSec": 180,
+      "timeoutMs": 3000
+    },
+    {
+      "id": "load-average",
+      "name": "System Load",
+      "description": "System load average check",
+      "type": "script",
+      "command": "uptime | awk '{load=+$(NF-2)} END {if(load > 2.0) exit 1; else exit 0}'",
+      "shell": "bash",
+      "intervalSec": 120,
+      "timeoutMs": 2000
+    }
+  ]
+}

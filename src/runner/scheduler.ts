@@ -246,6 +246,31 @@ export class Scheduler extends EventEmitter {
         }
     }
 
+    stopChannel(channelId: string): void {
+        const scheduled = this.scheduledChannels.get(channelId);
+        if (!scheduled) {
+            return;
+        }
+
+        // Clear the timer to prevent next scheduled run
+        if (scheduled.timer) {
+            clearTimeout(scheduled.timer);
+            scheduled.timer = undefined;
+        }
+
+        // Stop the channel runner for this specific channel
+        this.channelRunner.stopChannel(channelId);
+        
+        // Mark as not running
+        scheduled.isRunning = false;
+        
+        // Reschedule the next run
+        if (this.isEnabled) {
+            scheduled.nextRun = this.calculateNextRun(channelId);
+            this.scheduleNext(scheduled);
+        }
+    }
+
     private evaluateFishyConditions(channelId: string, sample: Sample): void {
         if (!this.configManager.getOnlyWhenFishyConfig().enabled) {
             return;

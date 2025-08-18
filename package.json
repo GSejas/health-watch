@@ -2,7 +2,7 @@
   "name": "health-watch",
   "displayName": "Health Watch",
   "description": "Multi-channel connectivity monitoring with automated reporting",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "publisher": "GSejas",
   "icon": "resources/icon-128.png",
   "engines": {
@@ -137,6 +137,26 @@
           "type": "boolean",
           "default": false,
           "description": "Enable script probes (security warning will be shown)"
+        },
+        "healthWatch.statusBar.icons.online": {
+          "type": "string",
+          "default": "🟢",
+          "description": "Icon to show when services are online"
+        },
+        "healthWatch.statusBar.icons.offline": {
+          "type": "string",
+          "default": "🔴",
+          "description": "Icon to show when services are offline"
+        },
+        "healthWatch.statusBar.icons.unknown": {
+          "type": "string",
+          "default": "🟡",
+          "description": "Icon to show when service status is unknown"
+        },
+        "healthWatch.statusBar.showInternet": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show internet connectivity status in status bar"
         }
       }
     },
@@ -190,13 +210,37 @@
         "command": "healthWatch.resumeChannel",
         "title": "Resume Channel",
         "category": "Health Watch"
+      },
+      {
+        "command": "healthWatch.stopChannel",
+        "title": "Stop Channel",
+        "category": "Health Watch"
+      },
+      {
+        "command": "healthWatch.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Health Watch"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "healthWatch",
+          "title": "Health Watch",
+          "icon": "resources/activity-icon.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "healthWatch": [
         {
           "id": "healthWatchChannels",
-          "name": "Health Watch",
+          "name": "Channels",
+          "when": "healthWatch.enabled"
+        },
+        {
+          "id": "healthWatchStatus",
+          "name": "Status",
           "when": "healthWatch.enabled"
         }
       ]
@@ -212,22 +256,37 @@
           "command": "healthWatch.refreshChannels",
           "when": "view == healthWatchChannels",
           "group": "navigation"
+        },
+        {
+          "command": "healthWatch.startWatch",
+          "when": "view == healthWatchStatus",
+          "group": "navigation"
+        },
+        {
+          "command": "healthWatch.openLastReport",
+          "when": "view == healthWatchStatus",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "healthWatch.runChannelNow",
-          "when": "view == healthWatchChannels && viewItem == channel",
+          "when": "view == healthWatchChannels && viewItem == channel-idle",
+          "group": "inline"
+        },
+        {
+          "command": "healthWatch.stopChannel",
+          "when": "view == healthWatchChannels && viewItem == channel-running",
           "group": "inline"
         },
         {
           "command": "healthWatch.pauseChannel",
-          "when": "view == healthWatchChannels && viewItem == channel",
+          "when": "view == healthWatchChannels && viewItem == channel-idle",
           "group": "management"
         },
         {
           "command": "healthWatch.resumeChannel",
-          "when": "view == healthWatchChannels && viewItem == channel",
+          "when": "view == healthWatchChannels && viewItem == channel-paused",
           "group": "management"
         }
       ]

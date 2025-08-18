@@ -5,6 +5,7 @@ import { GuardManager } from './guards';
 import { Scheduler } from './runner/scheduler';
 import { StatusBarManager } from './ui/statusBar';
 import { ChannelTreeProvider } from './ui/treeView';
+import { StatusTreeDataProvider } from './ui/statusTreeView';
 import { NotificationManager } from './ui/notifications';
 import { HealthWatchAPIImpl } from './api';
 import { DataExporter } from './export';
@@ -28,7 +29,9 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
         const statusBarManager = new StatusBarManager(scheduler);
         const treeProvider = new ChannelTreeProvider(scheduler);
         const notificationManager = new NotificationManager(scheduler);
-        
+
+        const statusProvider = new StatusTreeDataProvider(scheduler);
+
         // Initialize utilities
         const dataExporter = new DataExporter();
         const reportGenerator = new ReportGenerator();
@@ -42,8 +45,17 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
             showCollapseAll: false
         });
         
+        // Register status tree view (view id must match package.json contributes.views)
+        const statusTreeView = vscode.window.createTreeView('healthWatchStatus', {
+            treeDataProvider: statusProvider,
+            showCollapseAll: false
+        });
+        
         // Register commands
         registerCommands(context, scheduler, healthWatchAPI, dataExporter, reportGenerator, treeProvider, notificationManager);
+        
+        // Set context for when clauses
+        vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
         
         // Load configuration and start monitoring
         setupExtension(configManager, guardManager, scheduler);
@@ -52,7 +64,9 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
         context.subscriptions.push(
             statusBarManager,
             treeProvider,
+            statusProvider,
             treeView,
+            statusTreeView,
             notificationManager,
             healthWatchAPI,
             configManager
@@ -148,6 +162,12 @@ function registerCommands(
             }
         }],
         
+        ['healthWatch.stopChannel', (item) => {
+            if (item && item.channelInfo) {
+                treeProvider.stopChannel(item.channelInfo.id);
+            }
+        }],
+        
         ['healthWatch.showDetails', () => {
             showDetailsWebview(context, api);
         }]
@@ -181,7 +201,10 @@ async function setupExtension(
         // Set up configuration change listener
         vscode.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration('healthWatch')) {
-                if (configManager.isEnabled()) {
+                const isEnabled = configManager.isEnabled();
+                vscode.commands.executeCommand('setContext', 'healthWatch.enabled', isEnabled);
+                
+                if (isEnabled) {
                     scheduler.start();
                     scheduler.refreshChannels();
                 } else {
@@ -264,21 +287,35 @@ function showDetailsWebview(context: vscode.ExtensionContext, api: HealthWatchAP
 }
 
 function generateDetailsHTML(channels: any[], currentWatch: any, states: Map<string, any>): string {
-    const channelRows = channels.map(ch => {
-        const state = states.get(ch.id);
-        const statusIcon = ch.state === 'online' ? '🟢' : ch.state === 'offline' ? '🔴' : '🟡';
-        const latency = ch.lastLatency ? `${ch.lastLatency}ms` : 'N/A';
-        
-        return `
+    console.log('generateDetailsHTML called with:', { channelsCount: channels.length, currentWatch: !!currentWatch, statesSize: states.size });
+    
+    let channelRows = '';
+    
+    if (channels.length === 0) {
+        channelRows = `
             <tr>
-                <td>${statusIcon} ${ch.name || ch.id}</td>
-                <td>${ch.type}</td>
-                <td>${ch.state}</td>
-                <td>${latency}</td>
-                <td>${ch.isPaused ? 'Paused' : 'Active'}</td>
+                <td colspan="5" style="text-align: center; color: var(--vscode-descriptionForeground);">
+                    No channels configured. Add a .healthwatch.json file to your workspace.
+                </td>
             </tr>
         `;
-    }).join('');
+    } else {
+        channelRows = channels.map(ch => {
+            console.log('Processing channel:', ch);
+            const statusIcon = ch.state === 'online' ? '🟢' : ch.state === 'offline' ? '🔴' : '🟡';
+            const latency = ch.lastLatency ? `${ch.lastLatency}ms` : 'N/A';
+            
+            return `
+                <tr>
+                    <td>${statusIcon} ${ch.name || ch.id}</td>
+                    <td>${ch.type}</td>
+                    <td>${ch.state}</td>
+                    <td>${latency}</td>
+                    <td>${ch.isPaused ? 'Paused' : 'Active'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
     
     const watchInfo = currentWatch 
         ? `<p><strong>Active Watch:</strong> Started ${new Date(currentWatch.startTime).toLocaleString()}</p>`

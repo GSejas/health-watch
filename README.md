@@ -15,12 +15,42 @@ A local-first VS Code extension for monitoring multi-channel connectivity (publi
 ## Getting Started
 
 1. Install the extension
-2. Create a `.healthwatch.json` configuration file in your workspace
-3. Start monitoring via the command palette: "Health Watch: Start Watch"
+2. Set up your configuration:
+   - **Quick setup:** Run `./setup-config.sh` (Linux/Mac) or `./setup-config.ps1` (Windows)
+   - **Manual setup:** Copy one of the `.healthwatch.json.*` templates to `.healthwatch.json`
+   - **Custom setup:** Create your own `.healthwatch.json` (see Configuration section)
+3. Edit the configuration to match your actual services
+4. Start monitoring via the command palette: "Health Watch: Start Watch"
 
 ## Configuration
 
-Create a `.healthwatch.json` file in your workspace root:
+Create a `.healthwatch.json` file in your workspace root. You can use one of the provided templates:
+
+### Quick Start Templates
+
+**Simple Setup** (copy `.healthwatch.json.simple`):
+- Basic internet connectivity
+- Popular websites (Google, GitHub)
+- Local development server
+
+**Developer Setup** (copy `.healthwatch.json.developer`):
+- NPM registry, GitHub, Docker Hub
+- Local API/frontend servers
+- Database and Redis connections
+- Docker daemon and Git status
+
+**Production Setup** (copy `.healthwatch.json.production`):
+- Production websites and APIs
+- Database clusters and CDN
+- SSL certificate monitoring
+- System resource monitoring
+
+**Full Template** (copy `.healthwatch.json.template`):
+- Comprehensive monitoring setup
+- All channel types with examples
+- Common infrastructure patterns
+
+### Manual Configuration
 
 ```json
 {
@@ -31,14 +61,16 @@ Create a `.healthwatch.json` file in your workspace root:
       "type": "https",
       "url": "https://example.com/health",
       "intervalSec": 30,
-      "expectedContent": "ok"
+      "expect": {
+        "status": [200],
+        "bodyRegex": "ok|healthy"
+      }
     },
     {
       "id": "internal-db",
       "name": "Internal Database",
       "type": "tcp",
-      "hostname": "db.internal",
-      "port": 5432,
+      "target": "db.internal:5432",
       "intervalSec": 60,
       "guards": ["vpn"]
     }

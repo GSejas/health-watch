@@ -1,0 +1,151 @@
+{
+  "defaults": {
+    "intervalSec": 60,
+    "timeoutMs": 5000,
+    "threshold": 3,
+    "jitterPct": 10
+  },
+  "guards": {
+    "internet": {
+      "type": "dns",
+      "hostname": "8.8.8.8"
+    },
+    "localNetwork": {
+      "type": "dns",
+      "hostname": "gateway.local"
+    }
+  },
+  "channels": [
+    {
+      "id": "internet-connectivity",
+      "name": "Internet Connectivity",
+      "description": "Basic internet connectivity check via Google DNS",
+      "type": "dns",
+      "hostname": "8.8.8.8",
+      "recordType": "A",
+      "intervalSec": 30
+    },
+    {
+      "id": "primary-website",
+      "name": "Primary Website",
+      "description": "Main website availability and response time",
+      "type": "https",
+      "url": "https://example.com",
+      "intervalSec": 60,
+      "expect": {
+        "status": [200, 301, 302],
+        "treatAuthAsReachable": false
+      }
+    },
+    {
+      "id": "api-health",
+      "name": "API Health Check",
+      "description": "Main API endpoint health",
+      "type": "https",
+      "url": "https://api.example.com/health",
+      "intervalSec": 45,
+      "expect": {
+        "status": [200],
+        "bodyRegex": "ok|healthy|up"
+      }
+    },
+    {
+      "id": "database-port",
+      "name": "Database Connectivity",
+      "description": "Database server port connectivity",
+      "type": "tcp",
+      "target": "db.example.com:5432",
+      "intervalSec": 90,
+      "guards": ["internet"]
+    },
+    {
+      "id": "cdn-assets",
+      "name": "CDN Assets",
+      "description": "CDN availability for static assets",
+      "type": "https",
+      "url": "https://cdn.example.com/health",
+      "intervalSec": 120,
+      "expect": {
+        "status": [200, 304]
+      }
+    },
+    {
+      "id": "internal-service",
+      "name": "Internal Service",
+      "description": "Internal service behind VPN/firewall",
+      "type": "https",
+      "url": "https://internal.example.com/status",
+      "intervalSec": 180,
+      "guards": ["localNetwork"],
+      "expect": {
+        "status": [200],
+        "treatAuthAsReachable": true
+      }
+    },
+    {
+      "id": "mail-server",
+      "name": "Mail Server",
+      "description": "Email server MX record resolution",
+      "type": "dns",
+      "hostname": "example.com",
+      "recordType": "MX",
+      "intervalSec": 300
+    },
+    {
+      "id": "backup-service",
+      "name": "Backup Service",
+      "description": "Backup service TCP connectivity",
+      "type": "tcp",
+      "target": "backup.example.com:22",
+      "intervalSec": 600,
+      "timeoutMs": 10000
+    },
+    {
+      "id": "monitoring-endpoint",
+      "name": "Monitoring Endpoint",
+      "description": "Application monitoring/metrics endpoint",
+      "type": "https",
+      "url": "https://metrics.example.com/health",
+      "intervalSec": 120,
+      "expect": {
+        "status": [200],
+        "headerHas": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "id": "ssl-certificate",
+      "name": "SSL Certificate Check",
+      "description": "SSL certificate validity and expiration",
+      "type": "script",
+      "command": "curl -I --connect-timeout 5 https://example.com 2>/dev/null | head -1",
+      "shell": "bash",
+      "intervalSec": 86400,
+      "timeoutMs": 10000
+    },
+    {
+      "id": "disk-space",
+      "name": "Disk Space Check",
+      "description": "Local disk space availability",
+      "type": "script",
+      "command": "df -h / | tail -1 | awk '{print $5}' | sed 's/%//'",
+      "shell": "bash",
+      "intervalSec": 300,
+      "timeoutMs": 5000
+    },
+    {
+      "id": "local-dev-server",
+      "name": "Local Development Server",
+      "description": "Local development server (when running)",
+      "type": "https",
+      "url": "http://localhost:3000/health",
+      "intervalSec": 30,
+      "timeoutMs": 2000,
+      "threshold": 1,
+      "expect": {
+        "status": [200, 404]
+      }
+    }
+  ]
+}

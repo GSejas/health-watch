@@ -26,6 +26,7 @@ export class ChannelRunner extends EventEmitter {
     private scriptProbe = new ScriptProbe();
     
     private pausedChannels = new Set<string>();
+    private runningChannels = new Map<string, AbortController>();
 
     constructor() {
         super();
@@ -47,6 +48,15 @@ export class ChannelRunner extends EventEmitter {
             };
             return sample;
         }
+
+        // Check if channel is already running
+        if (this.runningChannels.has(channelId)) {
+            throw new Error(`Channel '${channelId}' is already running`);
+        }
+
+        // Create abort controller for this run
+        const abortController = new AbortController();
+        this.runningChannels.set(channelId, abortController);
 
         const state = this.storageManager.getChannelState(channelId);
         let sample: Sample;
@@ -91,12 +101,23 @@ export class ChannelRunner extends EventEmitter {
             }
 
         } catch (error) {
-            sample = {
-                timestamp: Date.now(),
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
-            };
-            this.handleFailure(channelId, sample);
+            if (abortController.signal.aborted) {
+                sample = {
+                    timestamp: Date.now(),
+                    success: false,
+                    error: 'Channel stopped by user'
+                };
+            } else {
+                sample = {
+                    timestamp: Date.now(),
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                };
+                this.handleFailure(channelId, sample);
+            }
+        } finally {
+            // Clean up running channel tracker
+            this.runningChannels.delete(channelId);
         }
 
         this.storageManager.addSample(channelId, sample);
@@ -215,6 +236,18 @@ export class ChannelRunner extends EventEmitter {
 
     isChannelPaused(channelId: string): boolean {
         return this.pausedChannels.has(channelId);
+    }
+
+    isChannelRunning(channelId: string): boolean {
+        return this.runningChannels.has(channelId);
+    }
+
+    stopChannel(channelId: string): void {
+        const abortController = this.runningChannels.get(channelId);
+        if (abortController) {
+            abortController.abort();
+            // The cleanup will happen in the finally block of runChannel
+        }
     }
 
     getBackoffMultiplier(channelId: string): number {

@@ -32,6 +32,7 @@ export interface ChannelInfo {
     lastLatency?: number;
     nextProbe?: number;
     isPaused: boolean;
+    isRunning?: boolean;
 }
 
 export interface WatchSession {

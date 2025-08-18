@@ -55,7 +55,7 @@
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
 import { Sample, ChannelInfo } from './types';
-import { ChannelDefinition, GuardDefinition } from './config';
+import { ChannelDefinition, GuardDefinition, ConfigManager } from './config';
 import { GuardImpl, GuardManager } from './guards';
 import { Scheduler } from './runner/scheduler';
 import { StorageManager } from './storage';
@@ -237,9 +237,19 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     }
 
     private getAllChannels(): ChannelDefinition[] {
-        // This would need to be integrated with ConfigManager to merge
-        // workspace channels with dynamically registered channels
-        return Array.from(this.dynamicChannels.values());
+        // Get workspace channels from ConfigManager
+        const configManager = ConfigManager.getInstance();
+        const workspaceChannels = configManager.getChannels();
+        
+        // Merge with dynamic channels
+        const allChannels = [...workspaceChannels];
+        for (const dynamicChannel of this.dynamicChannels.values()) {
+            if (!allChannels.find(ch => ch.id === dynamicChannel.id)) {
+                allChannels.push(dynamicChannel);
+            }
+        }
+        
+        return allChannels;
     }
 
     // Additional API methods for advanced usage
