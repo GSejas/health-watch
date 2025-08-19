@@ -1,6 +1,26 @@
 # Health Watch VS Code Extension
 
-A local-first VS Code extension for monitoring multi-channel connectivity (public internet + VPN-only internal services) with intelligent baseline tracking and automatic report generation.
+A local-first VS Code extension for monitoring multi-channel connectivity (public internet + VPN-only internal services) with intelligent baseline tracking, interactive dashboards, and automatic report generation.
+
+## ✨ New in v1.0.4
+
+🎯 **Enhanced Status Bar Experience**
+- **Multi-channel status bar**: Show individual status for each channel with configurable icons
+- **Three display modes**: `none`, `minimal` (single internet item), or `mini-multi-channel` (per-channel items)
+- **Smart overflow handling**: Automatic truncation with `+N` indicators for many channels
+- **Customizable formatting**: Control latency display, separators, and ordering
+
+📊 **Improved Dashboard & UI**
+- **Live monitoring views**: Real-time activity logs and status updates
+- **Enhanced timeline views**: Heatmaps, incidents, and swimlanes with React components
+- **Modern styling**: Tailwind CSS integration for consistent, responsive design
+- **Better error handling**: Clear validation messages and actionable error dialogs
+
+🛠️ **Developer Experience**
+- **Comprehensive testing**: Unit tests, E2E tests, and test coverage reporting
+- **Better documentation**: User journey guides, troubleshooting flowcharts, and setup templates
+- **Improved configuration**: Enhanced JSON schema validation with detailed error messages
+- **Template system**: Quick-start templates for different use cases
 
 ## Features
 
@@ -94,21 +114,65 @@ cp .healthwatch.json.simple .healthwatch.json
 
 This extension contributes the following VS Code settings:
 
+**Core Settings:**
 - `healthWatch.enabled`: Enable/disable health monitoring
-- `healthWatch.defaults.intervalSec`: Default probe interval in seconds
-- `healthWatch.defaults.timeoutMs`: Default probe timeout in milliseconds
-- `healthWatch.watch.durationDefault`: Default watch duration
-- `healthWatch.report.autoOpen`: Auto-open reports after watch sessions
+- `healthWatch.defaults.intervalSec`: Default probe interval in seconds (default: 60)
+- `healthWatch.defaults.timeoutMs`: Default probe timeout in milliseconds (default: 3000)
+- `healthWatch.defaults.threshold`: Default failure threshold before marking offline (default: 3)
+
+**Status Bar Configuration:**
+- `healthWatch.statusBar.mode`: Display mode - `none`, `minimal`, or `mini-multi-channel` (default: minimal)
+- `healthWatch.statusBar.showInternet`: Show internet connectivity in minimal mode (default: true)
+- `healthWatch.statusBar.format.showLatency`: Include latency in per-channel items (default: false)
+- `healthWatch.statusBar.format.separator`: Separator between icon and status (default: ":")
+- `healthWatch.statusBar.format.maxChannelItems`: Maximum per-channel items to show (default: 6)
+- `healthWatch.statusBar.format.order`: Item ordering - `explicit` or `worst-first` (default: explicit)
+
+**Status Bar Icons:**
+- `healthWatch.statusBar.icons.online`: Icon for online status (default: 🟢)
+- `healthWatch.statusBar.icons.offline`: Icon for offline status (default: 🔴)
+- `healthWatch.statusBar.icons.unknown`: Icon for unknown status (default: 🟡)
+
+**Watch & Reporting:**
+- `healthWatch.watch.defaultDuration`: Default watch duration - `1h`, `12h`, or `forever` (default: 1h)
+- `healthWatch.watch.highCadenceIntervalSec`: Probe interval during active watch (default: 15)
+- `healthWatch.report.autoOpen`: Auto-open reports after watch sessions (default: true)
+- `healthWatch.report.sloTarget`: SLO availability target percentage (default: 99)
+
+**Security & Advanced:**
+- `healthWatch.script.enabled`: Enable script probes (requires confirmation, default: false)
+- `healthWatch.quietHours.enabled`: Enable quiet hours for notifications (default: false)
+- `healthWatch.onlyWhenFishy.enabled`: Enable smart anomaly detection (default: true)
 
 ## Commands
 
-- `Health Watch: Start Watch`: Begin a monitoring session
+**Monitoring & Watch Sessions:**
+- `Health Watch: Start Watch`: Begin a time-boxed monitoring session
 - `Health Watch: Stop Watch`: End current monitoring session
-- `Health Watch: Run Channel Now`: Execute a single channel probe
-- `Health Watch: Open Last Report`: View the most recent report
-- `Health Watch: Open Dashboard`: Launch interactive monitoring dashboard
+- `Health Watch: Run All Probes Now`: Execute all channel probes immediately
+- `Health Watch: Run Channel Now`: Execute a specific channel probe
+
+**Dashboard & Reporting:**
+- `Health Watch: Open Dashboard`: Launch interactive monitoring dashboard with live views
+- `Health Watch: Open Last Report`: View the most recent session report
+- `Health Watch: Export Data as JSON`: Export all monitoring data
+
+**Incident Management:**
 - `Health Watch: Add Incident`: Create a new incident record
-- `Health Watch: Export Data as JSON`: Export monitoring data
+- `Health Watch: Edit Incident`: Modify existing incident details
+- `Health Watch: Delete Incident`: Remove incident from records
+- `Health Watch: Refresh Incidents`: Update incident tree view
+
+**Configuration:**
+- `Health Watch: Open Configuration`: Open `.healthwatch.json` for editing
+- `Health Watch: Refresh Channels`: Reload channel configuration
+- `Health Watch: Toggle Channel Enabled`: Enable/disable specific channels
+
+**Channel Control:**
+- `Health Watch: Pause Channel`: Temporarily pause a channel's probes
+- `Health Watch: Resume Channel`: Resume a paused channel
+- `Health Watch: Stop Channel`: Stop a running channel permanently
+- `Health Watch: Show Channel Details`: View detailed channel information
 
 ## Requirements
 
@@ -121,6 +185,51 @@ This extension contributes the following VS Code settings:
 - DNS probes may timeout in restricted network environments
 
 ## Release Notes
+
+### 1.0.4 (Latest)
+
+**🎯 Enhanced Status Bar Experience**
+- Added multi-channel status bar with three display modes: `none`, `minimal`, and `mini-multi-channel`
+- Configurable per-channel status items with custom icons, latency display, and ordering
+- Smart overflow handling with `+N` indicators for many channels
+- Individual channel opt-in/opt-out via `showInStatusBar` configuration
+
+**📊 Improved Dashboard & UI**
+- New live monitoring views with real-time activity logs
+- Enhanced timeline views using React components and Tremor UI
+- Modern styling with Tailwind CSS integration
+- Responsive design improvements across all dashboard views
+
+**🛠️ Developer Experience & Testing**
+- Comprehensive test suite with unit tests and E2E testing
+- Enhanced JSON schema validation with detailed error messages
+- Improved configuration templates and setup scripts
+- Better error handling with actionable error dialogs
+
+**📖 Documentation & User Experience**
+- New user journey documentation with flowcharts and troubleshooting guides
+- Enhanced setup templates for different use cases
+- Improved first-time user experience with better error messages
+- ASCII art diagrams and Mermaid flowcharts in documentation
+
+### 1.0.3
+
+**🔧 Configuration & Templates**
+- Added comprehensive configuration templates for different use cases
+- Improved setup scripts for Windows (PowerShell) and Unix (bash)
+- Enhanced JSON schema validation and error reporting
+
+### 1.0.2
+
+**🎨 UI & Icon Improvements**
+- Updated extension icon to PNG format for better compatibility
+- Enhanced tree view layouts and visual consistency
+
+### 1.0.1
+
+**🐛 Fixes & Improvements**
+- Fixed HTTP probe support for internal health monitoring
+- Improved error handling and validation
 
 ### 1.0.0
 
