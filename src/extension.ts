@@ -223,6 +223,81 @@ function registerCommands(
             if (incidentsProvider) {
                 await incidentsProvider.resetDemoIncidents();
             }
+        }],
+
+        ['healthWatch.showActiveSnoozes', async () => {
+            try {
+                await notificationManager.showActiveSnoozes();
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to show active snoozes: ${error}`);
+            }
+        }],
+
+        ['healthWatch.clearAllSnoozes', async () => {
+            try {
+                await notificationManager.clearAllSnoozes();
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to clear snoozes: ${error}`);
+            }
+        }],
+
+        ['healthWatch.openConfig', async () => {
+            try {
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                if (!workspaceFolder) {
+                    vscode.window.showErrorMessage('No workspace folder found');
+                    return;
+                }
+                
+                const configPath = vscode.Uri.joinPath(workspaceFolder.uri, '.healthwatch.json');
+                
+                try {
+                    // Try to open existing config
+                    const doc = await vscode.workspace.openTextDocument(configPath);
+                    await vscode.window.showTextDocument(doc);
+                } catch (error) {
+                    // Config doesn't exist, create it
+                    const choice = await vscode.window.showInformationMessage(
+                        'No .healthwatch.json found. Create a new configuration file?',
+                        'Create',
+                        'Cancel'
+                    );
+                    
+                    if (choice === 'Create') {
+                        const defaultConfig = {
+                            "$schema": "./resources/schema/vscode-healthwatch.schema.json",
+                            "defaults": {
+                                "intervalSec": 60,
+                                "timeoutMs": 3000,
+                                "threshold": 3,
+                                "jitterPct": 10
+                            },
+                            "guards": {},
+                            "channels": [
+                                {
+                                    "id": "example",
+                                    "name": "Example Service",
+                                    "type": "https",
+                                    "url": "https://example.com/health",
+                                    "expect": {
+                                        "statusRange": [200, 299]
+                                    }
+                                }
+                            ]
+                        };
+                        
+                        const configContent = JSON.stringify(defaultConfig, null, 2);
+                        await vscode.workspace.fs.writeFile(configPath, Buffer.from(configContent, 'utf8'));
+                        
+                        const doc = await vscode.workspace.openTextDocument(configPath);
+                        await vscode.window.showTextDocument(doc);
+                        
+                        vscode.window.showInformationMessage('Created .healthwatch.json with example configuration');
+                    }
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to open configuration: ${error}`);
+            }
         }]
     ];
     

@@ -125,18 +125,21 @@ export class Scheduler extends EventEmitter {
         const defaults = this.configManager.getDefaults();
         const currentWatch = this.storageManager.getCurrentWatch();
         
-        let intervalSec: number;
-        if (currentWatch?.isActive) {
-            // High cadence during watch
-            const watchConfig = this.configManager.getWatchConfig();
-            intervalSec = watchConfig.highCadenceIntervalSec;
-        } else if (this.configManager.getOnlyWhenFishyConfig().enabled) {
-            // Baseline interval in fishy mode
-            const fishyConfig = this.configManager.getOnlyWhenFishyConfig();
-            intervalSec = fishyConfig.baselineIntervalSec;
-        } else {
-            // Normal interval
-            intervalSec = channel.intervalSec ?? defaults.intervalSec;
+        // FIXED: Respect per-channel intervals as highest priority
+        // Per-channel configuration always takes precedence
+        let intervalSec: number = channel.intervalSec ?? defaults.intervalSec;
+        
+        // Only apply global overrides if no per-channel interval is specified
+        if (!channel.intervalSec) {
+            if (currentWatch?.isActive) {
+                // High cadence during watch (only if no channel-specific interval)
+                const watchConfig = this.configManager.getWatchConfig();
+                intervalSec = Math.min(intervalSec, watchConfig.highCadenceIntervalSec);
+            } else if (this.configManager.getOnlyWhenFishyConfig().enabled) {
+                // Baseline interval in fishy mode (only if no channel-specific interval)
+                const fishyConfig = this.configManager.getOnlyWhenFishyConfig();
+                intervalSec = fishyConfig.baselineIntervalSec;
+            }
         }
 
         // Apply backoff for offline channels
@@ -147,6 +150,13 @@ export class Scheduler extends EventEmitter {
         const jitterPct = channel.jitterPct ?? defaults.jitterPct;
         const jitter = (Math.random() - 0.5) * 2 * (jitterPct / 100);
         const jitteredInterval = intervalSec * (1 + jitter);
+
+        // Debug logging for interval precedence
+        if (channel.intervalSec && backoffMultiplier === 1) {
+            console.log(`[Scheduler] Channel '${channelId}': Using per-channel interval ${channel.intervalSec}s`);
+        } else if (backoffMultiplier > 1) {
+            console.log(`[Scheduler] Channel '${channelId}': Applying ${backoffMultiplier}x backoff (${intervalSec}s)`);
+        }
 
         return Date.now() + (jitteredInterval * 1000);
     }

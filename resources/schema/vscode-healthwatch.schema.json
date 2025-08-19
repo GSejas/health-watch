@@ -77,6 +77,11 @@
       "items": {
         "type": "object",
         "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether the channel is enabled; disabled channels will not be probed or affect metrics"
+          },
           "id": {
             "type": "string",
             "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
@@ -122,6 +127,16 @@
               "type": "string"
             },
             "description": "Guard names that must pass for this channel to be probed"
+          },
+          "icon": {
+            "type": "string",
+            "maxLength": 10,
+            "description": "Emoji or icon string for display in tree view and status bar (e.g., '🌐', '🔒', '📊')"
+          },
+          "showInStatusBar": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether to show this channel individually in the VS Code status bar"
           }
         },
         "required": ["id", "type"],

@@ -103,20 +103,20 @@ export class StatusTreeDataProvider implements vscode.TreeDataProvider<StatusTre
                 ));
 
                 // Overall health
-                const healthPercentage = total > 0 ? Math.round((online / total) * 100) : 0;
-                const healthIcon = healthPercentage >= 90 
-                    ? new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'))
-                    : healthPercentage >= 70
-                    ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'))
-                    : new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
+                // const healthPercentage = total > 0 ? Math.round((online / total) * 100) : 0;
+                // const healthIcon = healthPercentage >= 90 
+                //     ? new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'))
+                //     : healthPercentage >= 70
+                //     ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.yellow'))
+                //     : new vscode.ThemeIcon('error', new vscode.ThemeColor('charts.red'));
 
-                items.push(new StatusTreeItem(
-                    'Overall Health',
-                    `${healthPercentage}%`,
-                    vscode.TreeItemCollapsibleState.None,
-                    `${online}/${total} channels online`,
-                    healthIcon
-                ));
+                // items.push(new StatusTreeItem(
+                //     'Overall Health',
+                //     `${healthPercentage}%`,
+                //     vscode.TreeItemCollapsibleState.None,
+                //     `${online}/${total} channels online`,
+                //     healthIcon
+                // ));
             } else {
                 items.push(new StatusTreeItem(
                     'Channels',

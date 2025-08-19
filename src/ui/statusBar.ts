@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
 import { Scheduler } from '../runner/scheduler';
+import { ChannelInfo } from '../types';
+import { ChannelDefinition } from '../config';
 
 export class StatusBarManager {
     private statusBarItem: vscode.StatusBarItem;
@@ -139,14 +141,14 @@ export class StatusBarManager {
         return vscode.workspace.getConfiguration('healthWatch.statusBar').get('showInternet', true);
     }
 
-    private findInternetChannel(channels: any[]): any | null {
+    private findInternetChannel(channels: Array<ChannelInfo | ChannelDefinition>): ChannelInfo | ChannelDefinition | null {
         // Look for internet/public connectivity channels
         const internetKeywords = ['internet', 'public', 'google', 'cloudflare', '8.8.8.8', '1.1.1.1', 'connectivity'];
         
         // First try to find by common internet hostnames
         for (const channel of channels) {
-            if ((channel.type === 'https' || channel.type === 'http') && channel.url) {
-                const url = channel.url.toLowerCase();
+            if ((channel.type === 'https' || channel.type === 'http') && (channel as any).url) {
+                const url = String((channel as any).url).toLowerCase();
                 if (internetKeywords.some(keyword => url.includes(keyword))) {
                     return channel;
                 }
@@ -155,8 +157,11 @@ export class StatusBarManager {
         
         // Then try to find any public HTTP/HTTPS endpoint
         for (const channel of channels) {
-            if ((channel.type === 'https' || channel.type === 'http') && channel.url && !channel.url.includes('localhost') && !channel.url.includes('127.0.0.1')) {
-                return channel;
+            if ((channel.type === 'https' || channel.type === 'http') && (channel as any).url) {
+                const url = String((channel as any).url).toLowerCase();
+                if (!url.includes('localhost') && !url.includes('127.0.0.1')) {
+                    return channel;
+                }
             }
         }
         

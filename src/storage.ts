@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Sample, ChannelState, WatchSession, Outage } from './types';
+import { DiskStorageManager } from './diskStorage';
 
 /**
  * Manages persistent storage for the Health Watch extension.
@@ -30,6 +31,7 @@ import { Sample, ChannelState, WatchSession, Outage } from './types';
 export class StorageManager {
     private static instance: StorageManager;
     private context: vscode.ExtensionContext;
+    private diskStorage: DiskStorageManager;
     private channelStates = new Map<string, ChannelState>();
     private currentWatch: WatchSession | null = null;
     private watchHistory: WatchSession[] = [];
@@ -37,6 +39,7 @@ export class StorageManager {
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
+        this.diskStorage = DiskStorageManager.initialize(context);
         this.loadState();
     }
 
@@ -56,28 +59,30 @@ export class StorageManager {
 
     private async loadState() {
         try {
-            const channelStatesData = this.context.globalState.get<Record<string, ChannelState>>('healthWatch.channelStates', {});
-            for (const [id, state] of Object.entries(channelStatesData)) {
-                this.channelStates.set(id, state);
-            }
+            // Migrate from global state if needed (first time using disk storage)
+            await this.diskStorage.migrateFromGlobalState();
 
-            this.currentWatch = this.context.globalState.get<WatchSession | null>('healthWatch.currentWatch', null);
-            if (this.currentWatch?.samples) {
-                this.currentWatch.samples = new Map(Object.entries(this.currentWatch.samples as any));
-            }
+            // Load from disk storage
+            this.channelStates = await this.diskStorage.getChannelStates();
+            this.currentWatch = await this.diskStorage.getCurrentWatch();
+            this.watchHistory = await this.diskStorage.getWatchHistory();
+            this.outages = await this.diskStorage.getOutages();
 
-            this.watchHistory = this.context.globalState.get<WatchSession[]>('healthWatch.watchHistory', []);
-            this.outages = this.context.globalState.get<Outage[]>('healthWatch.outages', []);
+            // Convert samples back to Map for current watch
+            if (this.currentWatch && this.currentWatch.samples) {
+                if (!(this.currentWatch.samples instanceof Map)) {
+                    this.currentWatch.samples = new Map(Object.entries(this.currentWatch.samples as any));
+                }
+            }
         } catch (error) {
-            console.error('Failed to load storage state:', error);
+            console.error('Failed to load state from disk storage:', error);
         }
     }
 
     /**
-     * Persists the health watch state to the extension's global storage.
-     * 
+     * Persists the health watch state to disk storage instead of global state.
      * This method saves the following state data:
-     * - Channel states (converted from Map to object)
+     * - Channel states
      * - Current active watch data (if exists), with samples converted from Map to object
      * - Watch history records
      * - Outage records
@@ -89,26 +94,26 @@ export class StorageManager {
      */
     private async saveState() {
         try {
-            const channelStatesData = Object.fromEntries(this.channelStates.entries());
-            await this.context.globalState.update('healthWatch.channelStates', channelStatesData);
+            // Save to disk storage
+            await this.diskStorage.saveChannelStates(this.channelStates);
 
-            let currentWatchData = null;
+            // Convert Map to object for current watch before saving
             if (this.currentWatch) {
-                currentWatchData = {
+                const currentWatchData = {
                     ...this.currentWatch,
                     samples: Object.fromEntries(this.currentWatch.samples.entries())
-                };
+                } as any; // Type assertion for compatibility with storage
+                await this.diskStorage.setCurrentWatch(currentWatchData);
+            } else {
+                await this.diskStorage.setCurrentWatch(null);
             }
-            await this.context.globalState.update('healthWatch.currentWatch', currentWatchData);
 
-            await this.context.globalState.update('healthWatch.watchHistory', this.watchHistory);
-            await this.context.globalState.update('healthWatch.outages', this.outages);
+            // Note: Watch history and outages are saved individually when added
+            // to avoid having to save the entire array each time
         } catch (error) {
             console.error('Failed to save storage state:', error);
         }
-    }
-
-    getChannelState(channelId: string): ChannelState {
+    }    getChannelState(channelId: string): ChannelState {
         let state = this.channelStates.get(channelId);
         if (!state) {
             state = {
@@ -185,6 +190,9 @@ export class StorageManager {
             this.watchHistory = this.watchHistory.slice(-maxHistory);
         }
 
+        // Save to disk storage
+        this.diskStorage.addToWatchHistory({ ...this.currentWatch });
+
         const endedWatch = this.currentWatch;
         this.currentWatch = null;
         this.saveState();
@@ -212,7 +220,8 @@ export class StorageManager {
             this.outages = this.outages.slice(-maxOutages);
         }
         
-        this.saveState();
+        // Save directly to disk storage
+        this.diskStorage.addOutage(outage);
     }
 
     updateOutage(channelId: string, endTime: number, recoveryTime?: number): void {
@@ -282,6 +291,10 @@ export class StorageManager {
         
         this.outages = this.outages.filter(o => o.startTime >= cutoff);
         this.watchHistory = this.watchHistory.filter(w => w.startTime >= cutoff);
+        
+        // Also cleanup disk storage
+        const daysToKeep = Math.ceil(olderThanMs / (24 * 60 * 60 * 1000));
+        this.diskStorage.cleanupOldData(daysToKeep);
         
         this.saveState();
     }

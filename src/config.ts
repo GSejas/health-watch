@@ -99,7 +99,12 @@ export interface ChannelDefinition {
     timeoutMs?: number;
     threshold?: number;
     jitterPct?: number;
+    enabled?: boolean;
     guards?: string[];
+    
+    // UI display options
+    icon?: string;                    // Emoji or icon string for display in tree view and status bar
+    showInStatusBar?: boolean;        // Whether to show this channel individually in status bar
     
     url?: string;
     expect?: ExpectationRules;
