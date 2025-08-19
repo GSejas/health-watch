@@ -87,7 +87,8 @@ async function main() {
 		},
 		loader: {
 			'.tsx': 'tsx',
-			'.ts': 'ts'
+			'.ts': 'ts',
+			'.css': 'css'
 		},
 		logLevel: 'silent',
 		plugins: [

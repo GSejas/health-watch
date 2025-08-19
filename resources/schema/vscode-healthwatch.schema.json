@@ -11,7 +11,7 @@
         "intervalSec": {
           "type": "number",
           "minimum": 10,
-          "default": 60,
+          "default": 600,
           "description": "Default probe interval in seconds"
         },
         "timeoutMs": {
@@ -238,6 +238,49 @@
           }
         ]
       }
+    }
+    ,
+    "statusBar": {
+      "type": "object",
+      "description": "Status bar display options",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "minimal", "mini-multi-channel"],
+          "default": "minimal",
+          "description": "How Health Watch uses the VS Code status bar"
+        },
+        "format": {
+          "type": "object",
+          "description": "Formatting options for mini-multi-channel mode",
+          "properties": {
+            "showLatency": {
+              "type": "boolean",
+              "default": true,
+              "description": "Show last latency next to channel items"
+            },
+            "separator": {
+              "type": "string",
+              "default": " · ",
+              "description": "Separator string between icon, name and latency"
+            },
+            "maxChannelItems": {
+              "type": "number",
+              "minimum": 1,
+              "default": 5,
+              "description": "Maximum number of channel items to show before collapsing into an overflow indicator"
+            },
+            "order": {
+              "type": "string",
+              "enum": ["explicit", "worst-first"],
+              "default": "explicit",
+              "description": "Ordering strategy for channel items when using mini-multi-channel mode"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

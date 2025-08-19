@@ -344,6 +344,7 @@ export class DashboardManager {
         }
 
         switch (viewType) {
+            case 'timeline':
             case 'timeline-swimlane':
                 const timeRange = options.timeRange || this.currentState.timeRange || '7D';
                 const days = this.getTimeRangeDays(timeRange);
@@ -1391,6 +1392,288 @@ export class DashboardManager {
         /* Timeline React Bundle Fallback */
         #timeline-swimlanes-root .loading {
             min-height: 300px;
+        }
+        
+        /* Overview View Styles (No Tremor) */
+        .overview-container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .metric-card {
+            background: var(--vscode-textBlockQuote-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 8px;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .metric-emerald { color: var(--vscode-charts-green); }
+        .metric-red { color: var(--vscode-charts-red); }
+        .metric-yellow { color: var(--vscode-charts-yellow); }
+        .metric-gray { color: var(--vscode-descriptionForeground); }
+        
+        .metric-detail {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        /* Watch Banner */
+        .watch-banner {
+            background: var(--vscode-textBlockQuote-background);
+            border: 1px solid var(--vscode-charts-blue);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .watch-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .watch-icon {
+            font-size: 20px;
+        }
+        
+        .watch-title {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            color: var(--vscode-charts-blue);
+        }
+        
+        .watch-details {
+            margin: 0;
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        /* Channels Grid */
+        .channels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        
+        /* Channel Card */
+        .channel-card {
+            background: var(--vscode-textBlockQuote-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 16px;
+        }
+        
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .channel-title {
+            margin: 0;
+            font-size: 16px;
+            color: var(--vscode-foreground);
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .status-online {
+            background: var(--vscode-charts-green);
+            color: white;
+        }
+        
+        .status-offline {
+            background: var(--vscode-charts-red);
+            color: white;
+        }
+        
+        .status-unknown {
+            background: var(--vscode-charts-yellow);
+            color: black;
+        }
+        
+        /* Channel Details */
+        .channel-details {
+            margin-bottom: 12px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 12px;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            color: var(--vscode-foreground);
+        }
+        
+        .detail-value-small {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 150px;
+        }
+        
+        /* Latency Badge */
+        .latency-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .latency-emerald {
+            background: var(--vscode-charts-green);
+            color: white;
+        }
+        
+        .latency-yellow {
+            background: var(--vscode-charts-yellow);
+            color: black;
+        }
+        
+        .latency-red {
+            background: var(--vscode-charts-red);
+            color: white;
+        }
+        
+        .latency-gray {
+            background: var(--vscode-descriptionForeground);
+            color: white;
+        }
+        
+        /* Error Section */
+        .error-section {
+            margin: 12px 0;
+            padding: 8px;
+            background: var(--vscode-inputValidation-errorBackground);
+            border: 1px solid var(--vscode-inputValidation-errorBorder);
+            border-radius: 4px;
+        }
+        
+        .error-header {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--vscode-inputValidation-errorForeground);
+            margin-bottom: 4px;
+        }
+        
+        .error-message {
+            font-size: 11px;
+            color: var(--vscode-inputValidation-errorForeground);
+        }
+        
+        /* Action Buttons */
+        .channel-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 12px;
+            border-top: 1px solid var(--vscode-panel-border);
+            padding-top: 12px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: var(--vscode-font-family);
+        }
+        
+        .action-btn.primary {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+        
+        .action-btn.primary:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        
+        .action-btn.secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+        
+        .action-btn.secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+        
+        .action-btn.danger {
+            background: var(--vscode-charts-red);
+            color: white;
+        }
+        
+        .action-btn.danger:hover {
+            background: var(--vscode-errorForeground);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            background: var(--vscode-textBlockQuote-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-title {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            color: var(--vscode-foreground);
+        }
+        
+        .empty-description {
+            margin: 0 0 20px 0;
+            color: var(--vscode-descriptionForeground);
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
         }
         </style>
         `;

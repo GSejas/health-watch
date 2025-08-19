@@ -44,8 +44,6 @@ export function generateOverviewDashboard(data: OverviewViewData): string {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Overview</title>
-        <!-- Tremor CSS for React components -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
         ${baseCSS}
     </head>
     <body>
@@ -55,7 +53,7 @@ export function generateOverviewDashboard(data: OverviewViewData): string {
         <div id="overview-root">
             <div style="text-align: center; padding: 40px; color: var(--vscode-descriptionForeground);">
                 <div>Loading overview dashboard...</div>
-                <div style="margin-top: 10px; font-size: 12px;">Initializing React component</div>
+                <div style="margin-top: 10px; font-size: 12px;">Initializing React component (no Tremor)</div>
             </div>
         </div>
         

@@ -1,19 +1,6 @@
 import React from 'react';
-import { 
-    Card, 
-    Title, 
-    Text, 
-    Metric, 
-    Grid, 
-    Flex,
-    Badge,
-    ProgressCircle,
-    List,
-    ListItem,
-    Divider,
-    Button
-} from '@tremor/react';
 import { formatRelativeTime, formatWatchDuration } from '../../dashboardUtils';
+import '../styles/tailwind.css';
 
 export interface OverviewViewProps {
     channels: any[];
@@ -67,95 +54,85 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, state }) => {
     };
 
     return (
-        <Card className="max-w-sm" data-channel-id={channel.id}>
+        <div className="hw-card" data-channel-id={channel.id}>
             {/* Header with status badge */}
-            <Flex justifyContent="between" alignItems="center" className="mb-4">
-                <Title className="text-lg font-medium">{channel.name || channel.id}</Title>
-                <Badge color={getStatusColor(status)} size="sm">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-base font-medium text-vscode-foreground">{channel.name || channel.id}</h3>
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                    status === 'online' ? 'hw-badge-online' :
+                    status === 'offline' ? 'hw-badge-offline' :
+                    'hw-badge-unknown'
+                }`}>
                     {status.toUpperCase()}
-                </Badge>
-            </Flex>
+                </span>
+            </div>
 
             {/* Channel details */}
-            <List className="space-y-2">
-                <ListItem>
-                    <Flex justifyContent="between">
-                        <Text>Type</Text>
-                        <Text className="font-medium">{channel.type?.toUpperCase() || 'Unknown'}</Text>
-                    </Flex>
-                </ListItem>
+            <div className="space-y-2 mb-3">
+                <div className="flex justify-between items-center py-1 text-xs">
+                    <span className="text-vscode-secondary">Type</span>
+                    <span className="font-medium text-vscode-foreground">{channel.type?.toUpperCase() || 'Unknown'}</span>
+                </div>
                 
                 {channel.url && (
-                    <ListItem>
-                        <Flex justifyContent="between">
-                            <Text>URL</Text>
-                            <Text className="font-medium truncate max-w-32" title={channel.url}>
-                                {channel.url}
-                            </Text>
-                        </Flex>
-                    </ListItem>
+                    <div className="flex justify-between items-center py-1 text-xs">
+                        <span className="text-vscode-secondary">URL</span>
+                        <span className="font-medium truncate max-w-36 text-vscode-foreground" title={channel.url}>
+                            {channel.url}
+                        </span>
+                    </div>
                 )}
                 
                 {channel.target && (
-                    <ListItem>
-                        <Flex justifyContent="between">
-                            <Text>Target</Text>
-                            <Text className="font-medium">{channel.target}</Text>
-                        </Flex>
-                    </ListItem>
+                    <div className="flex justify-between items-center py-1 text-xs">
+                        <span className="text-vscode-secondary">Target</span>
+                        <span className="font-medium text-vscode-foreground">{channel.target}</span>
+                    </div>
                 )}
                 
-                <ListItem>
-                    <Flex justifyContent="between">
-                        <Text>Latency</Text>
-                        <Badge color={getLatencyColor(latency)} size="xs">
-                            {latency ? `${latency}ms` : 'N/A'}
-                        </Badge>
-                    </Flex>
-                </ListItem>
+                <div className="flex justify-between items-center py-1 text-xs">
+                    <span className="text-vscode-secondary">Latency</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        getLatencyColor(latency) === 'emerald' ? 'bg-vscode-success text-white' :
+                        getLatencyColor(latency) === 'yellow' ? 'bg-vscode-warning text-black' :
+                        getLatencyColor(latency) === 'red' ? 'bg-vscode-error text-white' :
+                        'bg-vscode-secondary text-white'
+                    }`}>
+                        {latency ? `${latency}ms` : 'N/A'}
+                    </span>
+                </div>
                 
-                <ListItem>
-                    <Flex justifyContent="between">
-                        <Text>Last Check</Text>
-                        <Text className="text-xs">
-                            {lastCheck ? formatRelativeTime(lastCheck) : 'Never'}
-                        </Text>
-                    </Flex>
-                </ListItem>
-            </List>
+                <div className="flex justify-between items-center py-1 text-xs">
+                    <span className="text-vscode-secondary">Last Check</span>
+                    <span className="text-xs text-vscode-secondary">
+                        {lastCheck ? formatRelativeTime(lastCheck) : 'Never'}
+                    </span>
+                </div>
+            </div>
 
             {error && (
-                <>
-                    <Divider />
-                    <Card className="border-red-200 bg-red-50">
-                        <Flex alignItems="start" className="space-x-2">
-                            <Text className="text-xl">⚠️</Text>
-                            <Text className="text-sm text-red-700">{error}</Text>
-                        </Flex>
-                    </Card>
-                </>
+                <div className="my-3 p-2 bg-red-50 border border-red-200 rounded">
+                    <div className="text-xs font-bold text-red-700 mb-1">⚠️ Error</div>
+                    <div className="text-xs text-red-700">{error}</div>
+                </div>
             )}
-
-            <Divider />
             
             {/* Action buttons */}
-            <Flex className="space-x-2" justifyContent="center">
-                <Button 
-                    size="xs" 
-                    variant="secondary"
+            <div className="flex gap-2 justify-center mt-3 pt-3 border-t border-vscode-border">
+                <button 
+                    className="hw-button-primary"
                     onClick={handleRunChannel}
                 >
                     ▶️ Run Now
-                </Button>
-                <Button 
-                    size="xs" 
-                    variant="secondary"
+                </button>
+                <button 
+                    className="hw-button-secondary"
                     onClick={handleViewDetails}
                 >
                     📊 Details
-                </Button>
-            </Flex>
-        </Card>
+                </button>
+            </div>
+        </div>
     );
 };
 
@@ -165,11 +142,16 @@ const MetricCard: React.FC<{
     detail: string;
     color?: string;
 }> = ({ label, value, detail, color = 'gray' }) => (
-    <Card className="text-center">
-        <Text className="text-sm font-medium">{label}</Text>
-        <Metric className={`text-${color}-600`}>{value}</Metric>
-        <Text className="text-xs text-gray-500 mt-1">{detail}</Text>
-    </Card>
+    <div className="hw-card text-center">
+        <div className="text-xs text-vscode-secondary mb-2">{label}</div>
+        <div className={`text-2xl font-bold mb-1 ${
+            color === 'emerald' ? 'text-vscode-success' :
+            color === 'red' ? 'text-vscode-error' :
+            color === 'yellow' ? 'text-vscode-warning' :
+            'text-vscode-secondary'
+        }`}>{value}</div>
+        <div className="text-xs text-vscode-secondary">{detail}</div>
+    </div>
 );
 
 const WatchStatusBanner: React.FC<{ currentWatch: any }> = ({ currentWatch }) => {
@@ -182,27 +164,24 @@ const WatchStatusBanner: React.FC<{ currentWatch: any }> = ({ currentWatch }) =>
     };
 
     return (
-        <Card className="border-blue-200 bg-blue-50 mb-6">
-            <Flex justifyContent="between" alignItems="center">
-                <Flex alignItems="center" className="space-x-3">
-                    <Text className="text-2xl">🔍</Text>
-                    <div>
-                        <Title className="text-blue-900">Active Watch Session</Title>
-                        <Text className="text-blue-700 text-sm">
-                            Duration: {formatWatchDuration(currentWatch)} • 
-                            Started: {new Date(currentWatch.startTime).toLocaleString()}
-                        </Text>
-                    </div>
-                </Flex>
-                <Button 
-                    size="sm" 
-                    color="red" 
-                    onClick={handleStopWatch}
-                >
-                    Stop Watch
-                </Button>
-            </Flex>
-        </Card>
+        <div className="hw-card border-vscode-info bg-opacity-10 mb-6 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+                <span className="text-xl">🔍</span>
+                <div>
+                    <h3 className="font-medium text-vscode-info mb-1">Active Watch Session</h3>
+                    <p className="text-xs text-vscode-secondary">
+                        Duration: {formatWatchDuration(currentWatch)} • 
+                        Started: {new Date(currentWatch.startTime).toLocaleString()}
+                    </p>
+                </div>
+            </div>
+            <button 
+                className="bg-vscode-error text-white px-3 py-1.5 rounded text-sm hover:opacity-80 transition-opacity"
+                onClick={handleStopWatch}
+            >
+                Stop Watch
+            </button>
+        </div>
     );
 };
 
@@ -216,21 +195,19 @@ const EmptyState: React.FC = () => {
     };
 
     return (
-        <Card className="text-center py-12">
-            <div className="space-y-4">
-                <Text className="text-6xl">🔧</Text>
-                <Title className="text-xl">No Channels Configured</Title>
-                <Text className="text-gray-600 max-w-md mx-auto">
-                    Add channels to your .healthwatch.json file to start monitoring your services.
-                </Text>
-                <Button 
-                    className="mt-4" 
-                    onClick={handleOpenConfig}
-                >
-                    ⚙️ Open Configuration
-                </Button>
-            </div>
-        </Card>
+        <div className="hw-card text-center py-10">
+            <div className="text-5xl mb-4">🔧</div>
+            <h3 className="text-lg font-medium text-vscode-foreground mb-3">No Channels Configured</h3>
+            <p className="text-vscode-secondary max-w-md mx-auto mb-5">
+                Add channels to your .healthwatch.json file to start monitoring your services.
+            </p>
+            <button 
+                className="hw-button-primary"
+                onClick={handleOpenConfig}
+            >
+                ⚙️ Open Configuration
+            </button>
+        </div>
     );
 };
 
@@ -271,9 +248,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     };
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-5 max-w-7xl mx-auto font-vscode">
             {/* Quick Statistics */}
-            <Grid numItems={4} className="gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <MetricCard
                     label="Availability"
                     value={`${availability}%`}
@@ -298,7 +275,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     detail="Status pending"
                     color="yellow"
                 />
-            </Grid>
+            </div>
 
             {/* Watch Status Banner */}
             {currentWatch?.isActive && (
@@ -307,7 +284,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             {/* Channel Status Cards */}
             {channels.length > 0 ? (
-                <Grid numItems={3} className="gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {channels.map(channel => (
                         <ChannelCard
                             key={channel.id}
@@ -315,7 +292,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                             state={statesObj[channel.id]}
                         />
                     ))}
-                </Grid>
+                </div>
             ) : (
                 <EmptyState />
             )}

@@ -2,6 +2,11 @@
 
 Purpose: Help AI agents be productive in this TypeScript VS Code extension by capturing architecture, workflows, and house patterns specific to this repo.
 
+# MCP tools usage & workflows
+
+For analyzing and searching code, we use the static analysis code, to understand interfaces and classes in module.
+
+
 ## Big picture
 - Local‑first VS Code extension (no telemetry). Entry: `src/extension.ts`; output bundle: `dist/extension.js`.
 - Core data flow: Scheduler → ChannelRunner → Probes → Storage → UI/Reports.

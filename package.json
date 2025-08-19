@@ -168,6 +168,34 @@
           "default": "🟡",
           "description": "Icon to show when service status is unknown"
         },
+        "healthWatch.statusBar.mode": {
+          "type": "string",
+          "enum": ["none", "minimal", "mini-multi-channel"],
+          "default": "minimal",
+          "description": "Status bar display mode: none, minimal (single internet item), or mini-multi-channel (per-channel items)"
+        },
+        "healthWatch.statusBar.format.showLatency": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, append short latency to per-channel status items"
+        },
+        "healthWatch.statusBar.format.separator": {
+          "type": "string",
+          "default": ":",
+          "description": "Separator between channel icon and state icon in per-channel items"
+        },
+        "healthWatch.statusBar.format.maxChannelItems": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "description": "Maximum number of per-channel status items to show"
+        },
+        "healthWatch.statusBar.format.order": {
+          "type": "string",
+          "enum": ["explicit", "worst-first"],
+          "default": "explicit",
+          "description": "Order of per-channel items: explicit (config order) or worst-first (offline first)"
+        },
         "healthWatch.statusBar.showInternet": {
           "type": "boolean",
           "default": true,
@@ -434,6 +462,7 @@
     "vscode:publish": "vsce publish"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.17.2",
     "@types/react": "^18.2.0",
@@ -444,11 +473,14 @@
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.2.1",
+    "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.8",
     "eslint": "^9.32.0",
     "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "tailwindcss": "^4.1.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   },

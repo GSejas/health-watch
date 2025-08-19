@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* VS Code theme integration layer */
+@layer base {
+  :root {
+    --tw-color-vscode-foreground: var(--vscode-foreground);
+    --tw-color-vscode-background: var(--vscode-editor-background);
+    --tw-color-vscode-secondary: var(--vscode-descriptionForeground);
+    --tw-color-vscode-border: var(--vscode-panel-border);
+    --tw-color-vscode-button: var(--vscode-button-background);
+    --tw-color-vscode-button-hover: var(--vscode-button-hoverBackground);
+    --tw-color-vscode-success: var(--vscode-charts-green);
+    --tw-color-vscode-error: var(--vscode-charts-red);
+    --tw-color-vscode-warning: var(--vscode-charts-yellow);
+    --tw-color-vscode-info: var(--vscode-charts-blue);
+  }
+  
+  body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+  }
+}
+
+@layer components {
+  /* Health Watch specific component styles */
+  .hw-card {
+    @apply bg-vscode-background border border-vscode-border rounded-md p-4;
+  }
+  
+  .hw-button-primary {
+    @apply bg-vscode-button text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-vscode-button-hover transition-colors;
+  }
+  
+  .hw-button-secondary {
+    @apply bg-vscode-button-secondary text-vscode-foreground px-3 py-1.5 rounded text-sm border border-vscode-border hover:bg-opacity-80 transition-colors;
+  }
+  
+  .hw-status-online {
+    @apply text-vscode-success;
+  }
+  
+  .hw-status-offline {
+    @apply text-vscode-error;
+  }
+  
+  .hw-status-unknown {
+    @apply text-vscode-warning;
+  }
+  
+  .hw-badge-online {
+    @apply bg-vscode-success text-white;
+  }
+  
+  .hw-badge-offline {
+    @apply bg-vscode-error text-white;
+  }
+  
+  .hw-badge-unknown {
+    @apply bg-vscode-warning text-black;
+  }
+}
