@@ -1,5 +1,19 @@
 import React from 'react';
-import { formatRelativeTime } from '../../dashboardUtils';
+import { 
+    Card, 
+    Title, 
+    Text, 
+    Metric, 
+    Grid, 
+    Flex,
+    Badge,
+    ProgressCircle,
+    List,
+    ListItem,
+    Divider,
+    Button
+} from '@tremor/react';
+import { formatRelativeTime, formatWatchDuration } from '../../dashboardUtils';
 
 export interface OverviewViewProps {
     channels: any[];
@@ -12,28 +26,29 @@ interface ChannelCardProps {
     state?: any;
 }
 
-const StatusIndicator: React.FC<{ status: string }> = ({ status }) => (
-    <div className={`channel-status status-${status}`}>
-        <div className="status-indicator"></div>
-        <span className="status-text">{status.toUpperCase()}</span>
-    </div>
-);
+const getStatusColor = (status: string): string => {
+    switch (status) {
+        case 'online': return 'emerald';
+        case 'offline': return 'red';
+        case 'unknown': return 'yellow';
+        default: return 'gray';
+    }
+};
+
+const getLatencyColor = (latency?: number): string => {
+    if (!latency) return 'gray';
+    if (latency < 100) return 'emerald';
+    if (latency < 300) return 'yellow';
+    return 'red';
+};
 
 const ChannelCard: React.FC<ChannelCardProps> = ({ channel, state }) => {
     const status = state?.state || 'unknown';
     const latency = state?.lastSample?.latencyMs;
     const lastCheck = state?.lastSample?.timestamp;
     const error = state?.lastSample?.error;
-    
-    const getLatencyClass = (latency?: number): string => {
-        if (!latency) return '';
-        if (latency < 100) return 'latency-good';
-        if (latency < 300) return 'latency-warning';
-        return 'latency-poor';
-    };
 
     const handleRunChannel = () => {
-        // Post message to parent window (webview communication)
         if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
                 command: 'runChannelNow',
@@ -52,61 +67,95 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, state }) => {
     };
 
     return (
-        <div className={`channel-card channel-${status}`} data-channel-id={channel.id}>
-            <div className="channel-header">
-                <div className="channel-name">{channel.name || channel.id}</div>
-                <StatusIndicator status={status} />
-            </div>
-            
-            <div className="channel-details">
-                <div className="detail-row">
-                    <span className="detail-label">Type:</span>
-                    <span className="detail-value">{channel.type?.toUpperCase() || 'Unknown'}</span>
-                </div>
+        <Card className="max-w-sm" data-channel-id={channel.id}>
+            {/* Header with status badge */}
+            <Flex justifyContent="between" alignItems="center" className="mb-4">
+                <Title className="text-lg font-medium">{channel.name || channel.id}</Title>
+                <Badge color={getStatusColor(status)} size="sm">
+                    {status.toUpperCase()}
+                </Badge>
+            </Flex>
+
+            {/* Channel details */}
+            <List className="space-y-2">
+                <ListItem>
+                    <Flex justifyContent="between">
+                        <Text>Type</Text>
+                        <Text className="font-medium">{channel.type?.toUpperCase() || 'Unknown'}</Text>
+                    </Flex>
+                </ListItem>
+                
                 {channel.url && (
-                    <div className="detail-row">
-                        <span className="detail-label">URL:</span>
-                        <span className="detail-value channel-url" title={channel.url}>{channel.url}</span>
-                    </div>
+                    <ListItem>
+                        <Flex justifyContent="between">
+                            <Text>URL</Text>
+                            <Text className="font-medium truncate max-w-32" title={channel.url}>
+                                {channel.url}
+                            </Text>
+                        </Flex>
+                    </ListItem>
                 )}
+                
                 {channel.target && (
-                    <div className="detail-row">
-                        <span className="detail-label">Target:</span>
-                        <span className="detail-value">{channel.target}</span>
-                    </div>
+                    <ListItem>
+                        <Flex justifyContent="between">
+                            <Text>Target</Text>
+                            <Text className="font-medium">{channel.target}</Text>
+                        </Flex>
+                    </ListItem>
                 )}
-                <div className="detail-row">
-                    <span className="detail-label">Latency:</span>
-                    <span className={`detail-value ${getLatencyClass(latency)}`}>
-                        {latency ? latency + 'ms' : 'N/A'}
-                    </span>
-                </div>
-                <div className="detail-row">
-                    <span className="detail-label">Last Check:</span>
-                    <span className="detail-value">
-                        {lastCheck ? formatRelativeTime(lastCheck) : 'Never'}
-                    </span>
-                </div>
-            </div>
+                
+                <ListItem>
+                    <Flex justifyContent="between">
+                        <Text>Latency</Text>
+                        <Badge color={getLatencyColor(latency)} size="xs">
+                            {latency ? `${latency}ms` : 'N/A'}
+                        </Badge>
+                    </Flex>
+                </ListItem>
+                
+                <ListItem>
+                    <Flex justifyContent="between">
+                        <Text>Last Check</Text>
+                        <Text className="text-xs">
+                            {lastCheck ? formatRelativeTime(lastCheck) : 'Never'}
+                        </Text>
+                    </Flex>
+                </ListItem>
+            </List>
 
             {error && (
-                <div className="channel-error">
-                    <div className="error-icon">⚠️</div>
-                    <div className="error-message">{error}</div>
-                </div>
+                <>
+                    <Divider />
+                    <Card className="border-red-200 bg-red-50">
+                        <Flex alignItems="start" className="space-x-2">
+                            <Text className="text-xl">⚠️</Text>
+                            <Text className="text-sm text-red-700">{error}</Text>
+                        </Flex>
+                    </Card>
+                </>
             )}
 
-            <div className="channel-actions">
-                <button className="action-btn" onClick={handleRunChannel}>
-                    <span className="btn-icon">▶️</span>
-                    Run Now
-                </button>
-                <button className="action-btn" onClick={handleViewDetails}>
-                    <span className="btn-icon">📊</span>
-                    Details
-                </button>
-            </div>
-        </div>
+            <Divider />
+            
+            {/* Action buttons */}
+            <Flex className="space-x-2" justifyContent="center">
+                <Button 
+                    size="xs" 
+                    variant="secondary"
+                    onClick={handleRunChannel}
+                >
+                    ▶️ Run Now
+                </Button>
+                <Button 
+                    size="xs" 
+                    variant="secondary"
+                    onClick={handleViewDetails}
+                >
+                    📊 Details
+                </Button>
+            </Flex>
+        </Card>
     );
 };
 
@@ -114,35 +163,16 @@ const MetricCard: React.FC<{
     label: string;
     value: string | number;
     detail: string;
-    className?: string;
-}> = ({ label, value, detail, className = '' }) => (
-    <div className={`metric-card ${className}`}>
-        <div className="metric-label">{label}</div>
-        <div className="metric-value">{value}</div>
-        <div className="metric-detail">{detail}</div>
-    </div>
+    color?: string;
+}> = ({ label, value, detail, color = 'gray' }) => (
+    <Card className="text-center">
+        <Text className="text-sm font-medium">{label}</Text>
+        <Metric className={`text-${color}-600`}>{value}</Metric>
+        <Text className="text-xs text-gray-500 mt-1">{detail}</Text>
+    </Card>
 );
 
 const WatchStatusBanner: React.FC<{ currentWatch: any }> = ({ currentWatch }) => {
-    const formatWatchDuration = (watch: any): string => {
-        if (watch.duration === 'forever') {
-            return 'Forever';
-        }
-        
-        if (typeof watch.duration === 'string') {
-            return watch.duration;
-        }
-        
-        const ms = typeof watch.duration === 'number' ? watch.duration : 60 * 60 * 1000;
-        const hours = Math.floor(ms / (60 * 60 * 1000));
-        const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-        
-        if (hours > 0) {
-            return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-        }
-        return `${minutes}m`;
-    };
-
     const handleStopWatch = () => {
         if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
@@ -152,19 +182,27 @@ const WatchStatusBanner: React.FC<{ currentWatch: any }> = ({ currentWatch }) =>
     };
 
     return (
-        <div className="watch-status-banner">
-            <div className="watch-icon">🔍</div>
-            <div className="watch-info">
-                <div className="watch-title">Active Watch Session</div>
-                <div className="watch-details">
-                    Duration: {formatWatchDuration(currentWatch)} • 
-                    Started: {new Date(currentWatch.startTime).toLocaleString()}
-                </div>
-            </div>
-            <button className="watch-stop-btn" onClick={handleStopWatch}>
-                Stop Watch
-            </button>
-        </div>
+        <Card className="border-blue-200 bg-blue-50 mb-6">
+            <Flex justifyContent="between" alignItems="center">
+                <Flex alignItems="center" className="space-x-3">
+                    <Text className="text-2xl">🔍</Text>
+                    <div>
+                        <Title className="text-blue-900">Active Watch Session</Title>
+                        <Text className="text-blue-700 text-sm">
+                            Duration: {formatWatchDuration(currentWatch)} • 
+                            Started: {new Date(currentWatch.startTime).toLocaleString()}
+                        </Text>
+                    </div>
+                </Flex>
+                <Button 
+                    size="sm" 
+                    color="red" 
+                    onClick={handleStopWatch}
+                >
+                    Stop Watch
+                </Button>
+            </Flex>
+        </Card>
     );
 };
 
@@ -178,17 +216,21 @@ const EmptyState: React.FC = () => {
     };
 
     return (
-        <div className="empty-state">
-            <div className="empty-icon">🔧</div>
-            <div className="empty-title">No Channels Configured</div>
-            <div className="empty-description">
-                Add channels to your .healthwatch.json file to start monitoring your services.
+        <Card className="text-center py-12">
+            <div className="space-y-4">
+                <Text className="text-6xl">🔧</Text>
+                <Title className="text-xl">No Channels Configured</Title>
+                <Text className="text-gray-600 max-w-md mx-auto">
+                    Add channels to your .healthwatch.json file to start monitoring your services.
+                </Text>
+                <Button 
+                    className="mt-4" 
+                    onClick={handleOpenConfig}
+                >
+                    ⚙️ Open Configuration
+                </Button>
             </div>
-            <button className="action-btn primary" onClick={handleOpenConfig}>
-                <span className="btn-icon">⚙️</span>
-                Open Configuration
-            </button>
-        </div>
+        </Card>
     );
 };
 
@@ -222,35 +264,41 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
     const availability = totalChannels > 0 ? Math.round((online / totalChannels) * 100) : 0;
 
+    const getAvailabilityColor = (availability: number): string => {
+        if (availability >= 95) return 'emerald';
+        if (availability >= 85) return 'yellow';
+        return 'red';
+    };
+
     return (
-        <div className="dashboard-content">
+        <div className="p-6 max-w-7xl mx-auto">
             {/* Quick Statistics */}
-            <div className="metrics-summary">
+            <Grid numItems={4} className="gap-4 mb-6">
                 <MetricCard
                     label="Availability"
                     value={`${availability}%`}
                     detail={`${online}/${totalChannels} services online`}
-                    className={availability >= 95 ? 'metric-good' : availability >= 85 ? 'metric-warning' : 'metric-critical'}
+                    color={getAvailabilityColor(availability)}
                 />
                 <MetricCard
                     label="Online"
                     value={online}
                     detail="Services running"
-                    className="metric-online"
+                    color="emerald"
                 />
                 <MetricCard
                     label="Offline"
                     value={offline}
                     detail="Services down"
-                    className="metric-offline"
+                    color="red"
                 />
                 <MetricCard
                     label="Unknown"
                     value={unknown}
                     detail="Status pending"
-                    className="metric-unknown"
+                    color="yellow"
                 />
-            </div>
+            </Grid>
 
             {/* Watch Status Banner */}
             {currentWatch?.isActive && (
@@ -259,7 +307,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             {/* Channel Status Cards */}
             {channels.length > 0 ? (
-                <div className="channels-grid">
+                <Grid numItems={3} className="gap-4">
                     {channels.map(channel => (
                         <ChannelCard
                             key={channel.id}
@@ -267,7 +315,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                             state={statesObj[channel.id]}
                         />
                     ))}
-                </div>
+                </Grid>
             ) : (
                 <EmptyState />
             )}

@@ -44,12 +44,28 @@ export interface TimelineIncidentsViewData {
 }
 
 /**
- * Generates timeline swimlanes view - shows availability over time per channel
+ * Generates timeline swimlanes view - React-based implementation
  */
-export function generateTimelineSwimlanesView(data: TimelineSwimlanesViewData): string {
+export function generateTimelineSwimlanesView(data: TimelineSwimlanesViewData & { timelineBundleUri?: string }): string {
     const { channels, timelineData, timeRange, navigation, baseCSS, baseScripts } = data;
-    const days = getTimeRangeDays(timeRange);
-    const dateLabels = generateDateLabels(days);
+    
+    // Convert Map to plain object for JSON serialization
+    const statesObj: Record<string, any> = {};
+    if (data.states instanceof Map) {
+        data.states.forEach((value, key) => {
+            statesObj[key] = value;
+        });
+    } else {
+        Object.assign(statesObj, data.states);
+    }
+    
+    // Prepare props for React component
+    const reactProps = {
+        channels,
+        states: statesObj,
+        timelineData,
+        timeRange
+    };
 
     return `
     <!DOCTYPE html>
@@ -57,97 +73,65 @@ export function generateTimelineSwimlanesView(data: TimelineSwimlanesViewData): 
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} 'unsafe-inline';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Timeline Swimlanes</title>
+        <!-- Tremor CSS for React components -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
         ${baseCSS}
     </head>
     <body>
         ${navigation}
         
-        <div class="dashboard-content">
-            <div class="timeline-container">
-                <div class="timeline-header">
-                    <h2>Service Availability Timeline</h2>
-                    <div class="timeline-controls">
-                        <select class="time-range-selector" data-command="changeTimeRange">
-                            <option value="7D" ${timeRange === '7D' ? 'selected' : ''}>Last 7 Days</option>
-                            <option value="30D" ${timeRange === '30D' ? 'selected' : ''}>Last 30 Days</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="timeline-legend">
-                    <div class="legend-item">
-                        <div class="legend-color bar-online"></div>
-                        <span>Online (≥90%)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color bar-degraded"></div>
-                        <span>Degraded (70-89%)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color bar-offline"></div>
-                        <span>Offline (<70%)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color bar-no-data"></div>
-                        <span>No Data</span>
-                    </div>
-                </div>
-
-                <div class="timeline-grid">
-                    <!-- Date headers -->
-                    <div class="timeline-labels">
-                        <div class="channel-label-header">Channel</div>
-                        ${dateLabels.map(label => `
-                            <div class="date-label">${label}</div>
-                        `).join('')}
-                    </div>
-
-                    <!-- Channel rows -->
-                    ${channels.map(channel => {
-                        const channelData = timelineData[channel.id] || [];
-                        return `
-                        <div class="timeline-row">
-                            <div class="channel-label">
-                                <div class="channel-name">${channel.name || channel.id}</div>
-                                <div class="channel-type">${channel.type?.toUpperCase()}</div>
-                            </div>
-                            ${channelData.map((dayData, index) => `
-                                <div class="timeline-bar ${getTimelineBarClass(dayData)}" 
-                                     title="${getTimelineTooltip(channel, dayData, dateLabels[index])}">
-                                    <div class="bar-fill" style="height: ${dayData.availability}%"></div>
-                                    ${dayData.sampleCount > 0 ? `
-                                        <div class="sample-count">${dayData.sampleCount}</div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                        `;
-                    }).join('')}
-                </div>
-
-                ${channels.length === 0 ? `
-                <div class="empty-timeline">
-                    <div class="empty-icon">📈</div>
-                    <div class="empty-title">No Timeline Data</div>
-                    <div class="empty-description">Configure channels to see availability timeline</div>
-                </div>
-                ` : ''}
-            </div>
-        </div>
+        <!-- React mount point for TimelineSwimlanesView -->
+        <div id="timeline-swimlanes-root" class="dashboard-content"></div>
         
         ${baseScripts}
+        
+        <!-- Load React Timeline Bundle -->
+        ${data.timelineBundleUri ? `
+            <script nonce="${data.nonce || ''}" src="${data.timelineBundleUri}"></script>
+            <script nonce="${data.nonce || ''}">
+                // Mount the React Timeline Swimlanes component
+                if (window.HealthWatch && window.HealthWatch.mountTimelineSwimlanesView) {
+                    window.HealthWatch.mountTimelineSwimlanesView('timeline-swimlanes-root', ${JSON.stringify(reactProps)});
+                } else {
+                    console.error('HealthWatch timeline components not loaded');
+                }
+            </script>
+        ` : `
+            <!-- Fallback content when React bundle is not available -->
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                Loading timeline view...
+            </div>
+        `}
     </body>
     </html>
     `;
 }
 
 /**
- * Generates timeline heatmap view - shows hourly availability patterns
+ * Generates timeline heatmap view - React-based implementation
  */
-export function generateTimelineHeatmapView(data: TimelineHeatmapViewData): string {
+export function generateTimelineHeatmapView(data: TimelineHeatmapViewData & { timelineBundleUri?: string }): string {
     const { channels, heatmapData, navigation, baseCSS, baseScripts } = data;
+    
+    // Convert Map to plain object for JSON serialization
+    const statesObj: Record<string, any> = {};
+    if (data.states instanceof Map) {
+        data.states.forEach((value, key) => {
+            statesObj[key] = value;
+        });
+    } else {
+        Object.assign(statesObj, data.states);
+    }
+    
+    // Prepare props for React component
+    const reactProps = {
+        channels,
+        states: statesObj,
+        heatmapData
+    };
     
     return `
     <!DOCTYPE html>
@@ -155,74 +139,65 @@ export function generateTimelineHeatmapView(data: TimelineHeatmapViewData): stri
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} 'unsafe-inline';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Timeline Heatmap</title>
+        <!-- Tremor CSS for React components -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
         ${baseCSS}
     </head>
     <body>
         ${navigation}
         
-        <div class="dashboard-content">
-            <div class="heatmap-container">
-                <div class="heatmap-header">
-                    <h2>Hourly Availability Heatmap</h2>
-                    <div class="heatmap-subtitle">Last 7 days, hourly resolution</div>
-                </div>
-
-                <div class="heatmap-legend">
-                    <span class="legend-label">Availability:</span>
-                    <div class="legend-gradient">
-                        <div class="gradient-bar"></div>
-                        <div class="gradient-labels">
-                            <span>0%</span>
-                            <span>50%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="heatmap-grid">
-                    ${channels.map(channel => {
-                        const channelHeatmap = heatmapData[channel.id] || [];
-                        return `
-                        <div class="heatmap-channel">
-                            <div class="heatmap-channel-label">
-                                <div class="channel-name">${channel.name || channel.id}</div>
-                                <div class="channel-type">${channel.type?.toUpperCase()}</div>
-                            </div>
-                            <div class="heatmap-cells">
-                                ${channelHeatmap.map((hourData, index) => `
-                                    <div class="heatmap-cell" 
-                                         style="background-color: ${getHeatmapColor(hourData.availability)}"
-                                         title="${getHeatmapTooltip(channel, hourData, index)}">
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        `;
-                    }).join('')}
-                </div>
-
-                <!-- Hour labels -->
-                <div class="heatmap-time-labels">
-                    ${Array.from({length: 24}, (_, hour) => `
-                        <div class="time-label">${hour.toString().padStart(2, '0')}</div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
+        <!-- React mount point for TimelineHeatmapView -->
+        <div id="timeline-heatmap-root" class="dashboard-content"></div>
         
         ${baseScripts}
+        
+        <!-- Load React Timeline Bundle -->
+        ${data.timelineBundleUri ? `
+            <script nonce="${data.nonce || ''}" src="${data.timelineBundleUri}"></script>
+            <script nonce="${data.nonce || ''}">
+                // Mount the React Timeline Heatmap component
+                if (window.HealthWatch && window.HealthWatch.mountTimelineHeatmapView) {
+                    window.HealthWatch.mountTimelineHeatmapView('timeline-heatmap-root', ${JSON.stringify(reactProps)});
+                } else {
+                    console.error('HealthWatch timeline components not loaded');
+                }
+            </script>
+        ` : `
+            <!-- Fallback content when React bundle is not available -->
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                Loading timeline heatmap view...
+            </div>
+        `}
     </body>
     </html>
     `;
 }
 
 /**
- * Generates timeline incidents view - shows incident history
+ * Generates timeline incidents view - React-based implementation
  */
-export function generateTimelineIncidentsView(data: TimelineIncidentsViewData): string {
+export function generateTimelineIncidentsView(data: TimelineIncidentsViewData & { timelineBundleUri?: string }): string {
     const { incidents, navigation, baseCSS, baseScripts } = data;
+    
+    // Convert Map to plain object for JSON serialization
+    const statesObj: Record<string, any> = {};
+    if (data.states instanceof Map) {
+        data.states.forEach((value, key) => {
+            statesObj[key] = value;
+        });
+    } else {
+        Object.assign(statesObj, data.states);
+    }
+    
+    // Prepare props for React component
+    const reactProps = {
+        channels: data.channels,
+        states: statesObj,
+        incidents
+    };
 
     return `
     <!DOCTYPE html>
@@ -230,60 +205,38 @@ export function generateTimelineIncidentsView(data: TimelineIncidentsViewData): 
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} 'unsafe-inline';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Incidents Timeline</title>
+        <!-- Tremor CSS for React components -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
         ${baseCSS}
     </head>
     <body>
         ${navigation}
         
-        <div class="dashboard-content">
-            <div class="incidents-container">
-                <div class="incidents-header">
-                    <h2>Incident Timeline</h2>
-                    <div class="incidents-subtitle">Last 7 days of incidents and recoveries</div>
-                </div>
-
-                <div class="incidents-list">
-                    ${incidents.map(incident => `
-                        <div class="incident-item severity-${incident.severity}">
-                            <div class="incident-timeline-marker">
-                                <div class="incident-time">
-                                    ${new Date(incident.timestamp).toLocaleString()}
-                                </div>
-                                <div class="incident-marker ${incident.type}"></div>
-                            </div>
-                            <div class="incident-details">
-                                <div class="incident-title">${incident.title}</div>
-                                <div class="incident-description">${incident.description}</div>
-                                <div class="incident-meta">
-                                    <span class="incident-channel">${incident.channel}</span>
-                                    ${incident.duration ? `
-                                        <span class="incident-duration">${incident.duration}m duration</span>
-                                    ` : ''}
-                                    <span class="incident-impact">${incident.impact}</span>
-                                </div>
-                            </div>
-                            <div class="incident-severity">
-                                <div class="severity-badge ${incident.severity}">
-                                    ${incident.severity.toUpperCase()}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-
-                ${incidents.length === 0 ? `
-                <div class="empty-incidents">
-                    <div class="empty-icon">✅</div>
-                    <div class="empty-title">No Recent Incidents</div>
-                    <div class="empty-description">All services are running smoothly</div>
-                </div>
-                ` : ''}
-            </div>
-        </div>
+        <!-- React mount point for TimelineIncidentsView -->
+        <div id="timeline-incidents-root" class="dashboard-content"></div>
         
         ${baseScripts}
+        
+        <!-- Load React Timeline Bundle -->
+        ${data.timelineBundleUri ? `
+            <script nonce="${data.nonce || ''}" src="${data.timelineBundleUri}"></script>
+            <script nonce="${data.nonce || ''}">
+                // Mount the React Timeline Incidents component
+                if (window.HealthWatch && window.HealthWatch.mountTimelineIncidentsView) {
+                    window.HealthWatch.mountTimelineIncidentsView('timeline-incidents-root', ${JSON.stringify(reactProps)});
+                } else {
+                    console.error('HealthWatch timeline components not loaded');
+                }
+            </script>
+        ` : `
+            <!-- Fallback content when React bundle is not available -->
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                Loading timeline incidents view...
+            </div>
+        `}
     </body>
     </html>
     `;

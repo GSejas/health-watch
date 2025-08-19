@@ -246,9 +246,9 @@ export class ConfigManager {
         const workspaceDefaults = this.workspaceConfig?.defaults;
         
         return {
-            intervalSec: workspaceDefaults?.intervalSec ?? vsConfig.get('intervalSec', 60),
-            timeoutMs: workspaceDefaults?.timeoutMs ?? vsConfig.get('timeoutMs', 3000),
-            threshold: workspaceDefaults?.threshold ?? vsConfig.get('threshold', 3),
+            intervalSec: workspaceDefaults?.intervalSec ?? vsConfig.get('intervalSec', 30),        // Faster feedback (was 60)
+            timeoutMs: workspaceDefaults?.timeoutMs ?? vsConfig.get('timeoutMs', 5000),           // More realistic (was 3000)
+            threshold: workspaceDefaults?.threshold ?? vsConfig.get('threshold', 2),             // Quicker detection (was 3)
             jitterPct: workspaceDefaults?.jitterPct ?? vsConfig.get('jitterPct', 10),
         };
     }

@@ -181,7 +181,8 @@ export class ChannelRunner extends EventEmitter {
                 state: 'online',
                 consecutiveFailures: 0,
                 backoffMultiplier: 1,
-                lastStateChange: oldState !== 'online' ? sample.timestamp : state.lastStateChange
+                lastStateChange: oldState !== 'online' ? sample.timestamp : state.lastStateChange,
+                firstFailureTime: undefined  // Clear failure streak tracking
             });
         }
         
@@ -199,30 +200,41 @@ export class ChannelRunner extends EventEmitter {
         
         const newFailureCount = state.consecutiveFailures + 1;
         
+        // Track first failure time in the current streak
+        const firstFailureTime = state.consecutiveFailures === 0 ? sample.timestamp : 
+            (state.firstFailureTime || sample.timestamp);
+        
         if (newFailureCount >= threshold && state.state !== 'offline') {
-            // Transition to offline
+            // Transition to offline - record enhanced outage data
             this.storageManager.updateChannelState(channelId, {
                 state: 'offline',
                 consecutiveFailures: newFailureCount,
                 lastStateChange: sample.timestamp,
-                backoffMultiplier: Math.min(state.backoffMultiplier * 3, 10)
+                backoffMultiplier: Math.min(state.backoffMultiplier * 3, 10),
+                firstFailureTime: firstFailureTime
             });
             
             this.storageManager.addOutage({
                 channelId,
-                startTime: sample.timestamp,
-                reason: sample.error || 'Unknown failure'
+                startTime: sample.timestamp,          // Legacy: threshold crossing time
+                confirmedAt: sample.timestamp,        // When threshold was crossed
+                firstFailureTime: firstFailureTime,  // When problems actually started  
+                reason: sample.error || 'Unknown failure',
+                failureCount: newFailureCount
             });
             
             this.emit('outageStart', { 
                 channelId, 
                 timestamp: sample.timestamp, 
-                reason: sample.error || 'Unknown failure' 
+                reason: sample.error || 'Unknown failure',
+                firstFailureTime: firstFailureTime,
+                failureCount: newFailureCount
             });
         } else {
-            // Still accumulating failures
+            // Still accumulating failures - track first failure time
             this.storageManager.updateChannelState(channelId, {
-                consecutiveFailures: newFailureCount
+                consecutiveFailures: newFailureCount,
+                firstFailureTime: firstFailureTime
             });
         }
     }

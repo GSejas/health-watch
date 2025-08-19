@@ -8,7 +8,7 @@
   "license": "MIT",
   "homepage": "https://github.com/GSejas/health-watch",
   "repository": {
-    "type": "git", 
+    "type": "git",
     "url": "https://github.com/GSejas/health-watch.git"
   },
   "bugs": {
@@ -221,22 +221,26 @@
       {
         "command": "healthWatch.runChannelNow",
         "title": "Run Channel Now",
-        "category": "Health Watch"
+        "category": "Health Watch",
+        "icon": "$(play)"
       },
       {
         "command": "healthWatch.pauseChannel",
         "title": "Pause Channel",
-        "category": "Health Watch"
+        "category": "Health Watch",
+        "icon": "$(debug-pause)"
       },
       {
         "command": "healthWatch.resumeChannel",
         "title": "Resume Channel",
-        "category": "Health Watch"
+        "category": "Health Watch",
+        "icon": "$(debug-start)"
       },
       {
         "command": "healthWatch.stopChannel",
         "title": "Stop Channel",
-        "category": "Health Watch"
+        "category": "Health Watch",
+        "icon": "$(stop)"
       },
       {
         "command": "healthWatch.openDashboard",
@@ -276,7 +280,8 @@
       {
         "command": "healthWatch.showChannelDetails",
         "title": "Show Channel Details",
-        "category": "Health Watch"
+        "category": "Health Watch",
+        "icon": "$(info)"
       },
       {
         "command": "healthWatch.openConfig",
@@ -363,33 +368,33 @@
       "view/item/context": [
         {
           "command": "healthWatch.runChannelNow",
-          "when": "view == healthWatchChannels && viewItem == channel-idle",
-          "group": "inline"
-        },
-        {
-          "command": "healthWatch.stopChannel",
-          "when": "view == healthWatchChannels && viewItem == channel-running",
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-(idle|running)-.*/",
           "group": "inline"
         },
         {
           "command": "healthWatch.pauseChannel",
-          "when": "view == healthWatchChannels && viewItem == channel-idle",
-          "group": "management"
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-idle-.*/",
+          "group": "inline"
         },
         {
           "command": "healthWatch.resumeChannel",
-          "when": "view == healthWatchChannels && viewItem == channel-paused",
-          "group": "management"
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-paused-.*/",
+          "group": "inline"
+        },
+        {
+          "command": "healthWatch.stopChannel",
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-running-.*/",
+          "group": "inline"
         },
         {
           "command": "healthWatch.showChannelDetails",
           "when": "view == healthWatchChannels && viewItem =~ /^channel-.*/",
-          "group": "details"
+          "group": "inline"
         },
         {
           "command": "healthWatch.toggleChannelEnabled",
           "when": "view == healthWatchChannels && viewItem =~ /^channel-.*/",
-          "group": "toggle"
+          "group": "management"
         },
         {
           "command": "healthWatch.openConfig",
@@ -404,7 +409,7 @@
         {
           "command": "healthWatch.deleteIncident",
           "when": "view == healthWatchIncidents && viewItem == incident",
-          "group": "management"
+          "group": "inline"
         }
       ]
     }
@@ -430,7 +435,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
+    "@types/node": "^22.17.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/vscode": "^1.103.0",
@@ -438,16 +443,18 @@
     "@typescript-eslint/parser": "^8.39.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.2.1",
     "esbuild": "^0.25.8",
     "eslint": "^9.32.0",
     "npm-run-all": "^4.1.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
-    "@vscode/vsce": "^3.2.1"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
-    "ajv": "^8.12.0"
+    "@tremor/react": "^3.18.7",
+    "ajv": "^8.12.0",
+    "date-fns": "^3.6.0"
   }
 }

@@ -232,7 +232,13 @@ export class StorageManager {
         
         if (outage) {
             outage.endTime = endTime;
-            outage.duration = endTime - outage.startTime;
+            outage.duration = endTime - outage.startTime;  // Legacy: detected duration
+            
+            // Calculate actual impact duration if we have firstFailureTime
+            if (outage.firstFailureTime) {
+                outage.actualDuration = endTime - outage.firstFailureTime;
+            }
+            
             if (recoveryTime !== undefined) {
                 outage.recoveryTime = recoveryTime;
             }

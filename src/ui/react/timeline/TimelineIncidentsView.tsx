@@ -1,5 +1,6 @@
 import React from 'react';
 import { DashboardIncident } from '../../dashboardData';
+import { baseStyles } from '../shared/baseStyles';
 
 export interface TimelineIncidentsViewProps {
     channels: any[];
@@ -225,6 +226,298 @@ export const TimelineIncidentsView: React.FC<TimelineIncidentsViewProps> = ({
                     <EmptyIncidents />
                 )}
             </div>
+            
+            <style>{incidentsStyles}</style>
         </div>
     );
 };
+
+const incidentsStyles = `
+    ${baseStyles}
+    
+    /* Incidents-specific styles */
+    .incidents-header {
+        margin-bottom: 24px;
+        text-align: center;
+    }
+
+    .incidents-subtitle {
+        color: var(--vscode-descriptionForeground);
+        font-size: 14px;
+    }
+
+    /* Incidents Summary Styles */
+    .incidents-summary {
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .summary-stats {
+        display: flex;
+        gap: 24px;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--vscode-foreground);
+    }
+
+    .stat-label {
+        font-size: 12px;
+        color: var(--vscode-descriptionForeground);
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .severity-breakdown {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .severity-count {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .severity-count.severity-critical {
+        background: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+    }
+
+    .severity-count.severity-high {
+        background: rgba(255, 152, 0, 0.2);
+        color: #ff9800;
+    }
+
+    .severity-count.severity-medium {
+        background: rgba(255, 235, 59, 0.2);
+        color: #ffeb3b;
+    }
+
+    .severity-count.severity-low {
+        background: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+    }
+
+    /* Filters Styles */
+    .incident-filters {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding: 16px;
+        background: var(--vscode-input-background);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-group label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--vscode-foreground);
+    }
+
+    .filter-group select {
+        background: var(--vscode-dropdown-background);
+        color: var(--vscode-dropdown-foreground);
+        border: 1px solid var(--vscode-dropdown-border);
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 12px;
+        min-width: 120px;
+    }
+
+    .filter-group select:focus {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
+
+    /* Incidents List Styles */
+    .incidents-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .incident-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 8px;
+        border-left-width: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .incident-item:hover {
+        background: var(--vscode-list-hoverBackground);
+        border-color: var(--vscode-list-hoverBackground);
+    }
+
+    .incident-item.severity-critical {
+        border-left-color: #f44336;
+    }
+
+    .incident-item.severity-high {
+        border-left-color: #ff9800;
+    }
+
+    .incident-item.severity-medium {
+        border-left-color: #ffeb3b;
+    }
+
+    .incident-item.severity-low {
+        border-left-color: #4caf50;
+    }
+
+    .incident-timeline-marker {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        width: 100px;
+    }
+
+    .incident-time {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .incident-marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        background: var(--vscode-editor-background);
+        border: 2px solid var(--vscode-widget-border);
+    }
+
+    .incident-marker.outage {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: #f44336;
+    }
+
+    .incident-marker.degradation {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: #ff9800;
+    }
+
+    .incident-marker.recovery {
+        background: rgba(76, 175, 80, 0.1);
+        border-color: #4caf50;
+    }
+
+    .incident-marker.maintenance {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: #2196f3;
+    }
+
+    .incident-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .incident-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--vscode-foreground);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .incident-description {
+        font-size: 13px;
+        color: var(--vscode-descriptionForeground);
+        line-height: 1.4;
+        margin-bottom: 10px;
+    }
+
+    .incident-meta {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .incident-channel, .incident-duration, .incident-impact {
+        background: var(--vscode-badge-background);
+        color: var(--vscode-badge-foreground);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-weight: 500;
+    }
+
+    .incident-severity {
+        flex-shrink: 0;
+    }
+
+    .severity-badge {
+        padding: 6px 10px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .severity-badge.critical {
+        background: #f44336;
+        color: white;
+    }
+
+    .severity-badge.high {
+        background: #ff9800;
+        color: white;
+    }
+
+    .severity-badge.medium {
+        background: #ffeb3b;
+        color: #333;
+    }
+
+    .severity-badge.low {
+        background: #4caf50;
+        color: white;
+    }
+
+    /* Empty State - using base empty-state classes from baseStyles */
+    .empty-incidents {
+        /* Inherits from .empty-state in baseStyles */
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--vscode-descriptionForeground);
+    }
+`;

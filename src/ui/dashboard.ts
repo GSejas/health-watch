@@ -322,6 +322,8 @@ export class DashboardManager {
     const cspSource = this.panel?.webview.cspSource || '';
         let reactBundleUri: string | undefined;
         let overviewBundleUri: string | undefined;
+        let timelineBundleUri: string | undefined;
+        let monitorBundleUri: string | undefined;
         
         const navigation = this.generateNavigationHTML(viewType);
         const baseCSS = this.getBaseCSS();
@@ -333,6 +335,12 @@ export class DashboardManager {
             
             const overviewBundleUriPath = vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'overview-view.js');
             overviewBundleUri = this.panel.webview.asWebviewUri(overviewBundleUriPath).toString();
+            
+            const timelineBundleUriPath = vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'timeline-view.js');
+            timelineBundleUri = this.panel.webview.asWebviewUri(timelineBundleUriPath).toString();
+            
+            const monitorBundleUriPath = vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'monitor-view.js');
+            monitorBundleUri = this.panel.webview.asWebviewUri(monitorBundleUriPath).toString();
         }
 
         switch (viewType) {
@@ -349,7 +357,8 @@ export class DashboardManager {
                     baseCSS,
                     baseScripts,
                     nonce,
-                    cspSource
+                    cspSource,
+                    timelineBundleUri
                 });
                 
             case 'timeline-heatmap':
@@ -362,7 +371,8 @@ export class DashboardManager {
                     baseCSS,
                     baseScripts,
                     nonce,
-                    cspSource
+                    cspSource,
+                    timelineBundleUri
                 });
                 
             case 'timeline-incidents':
@@ -375,7 +385,8 @@ export class DashboardManager {
                     baseCSS,
                     baseScripts,
                     nonce,
-                    cspSource
+                    cspSource,
+                    timelineBundleUri
                 });
                 
             case 'metrics':
@@ -1012,6 +1023,375 @@ export class DashboardManager {
         .value-good { color: var(--vscode-charts-green); }
         .value-warning { color: var(--vscode-charts-orange); }
         .value-bad { color: var(--vscode-charts-red); }
+        
+        /* Timeline Swimlanes View Styles */
+        .timeline-container {
+            background: var(--vscode-textBlockQuote-background);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .timeline-header {
+            margin-bottom: 20px;
+        }
+        .timeline-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            color: var(--vscode-foreground);
+        }
+        .timeline-subtitle {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .timeline-swimlanes {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .timeline-lane {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .lane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .lane-title {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .lane-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: var(--vscode-button-secondaryBackground);
+        }
+        .timeline-bars {
+            display: flex;
+            gap: 2px;
+            height: 20px;
+            margin-bottom: 8px;
+        }
+        .timeline-bar {
+            flex: 1;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .bar-online { background: var(--vscode-charts-green); }
+        .bar-offline { background: var(--vscode-charts-red); }
+        .bar-mixed { background: var(--vscode-charts-orange); }
+        .bar-unknown { background: var(--vscode-descriptionForeground); }
+        .bar-no-data { background: var(--vscode-panel-border); }
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        /* Heatmap View Styles */
+        .heatmap-container {
+            background: var(--vscode-textBlockQuote-background);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .heatmap-header {
+            margin-bottom: 20px;
+        }
+        .heatmap-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            color: var(--vscode-foreground);
+        }
+        .heatmap-subtitle {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .legend-label {
+            font-size: 12px;
+            color: var(--vscode-foreground);
+        }
+        .legend-gradient {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .gradient-bar {
+            width: 200px;
+            height: 12px;
+            background: linear-gradient(to right, #ff0000, #ffff00, #00ff00);
+            border-radius: 6px;
+        }
+        .gradient-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .heatmap-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .heatmap-channel {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .heatmap-channel-label {
+            min-width: 150px;
+            text-align: right;
+        }
+        .channel-name {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .channel-type {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .heatmap-cells {
+            display: flex;
+            gap: 2px;
+        }
+        .heatmap-cell {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .heatmap-time-labels {
+            display: flex;
+            gap: 2px;
+            margin-top: 15px;
+            margin-left: 165px;
+        }
+        .time-label {
+            width: 16px;
+            font-size: 9px;
+            color: var(--vscode-descriptionForeground);
+            text-align: center;
+        }
+        
+        /* Incidents View Styles */
+        .incidents-container {
+            background: var(--vscode-textBlockQuote-background);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+        .incidents-header {
+            margin-bottom: 20px;
+        }
+        .incidents-header h2 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            color: var(--vscode-foreground);
+        }
+        .incidents-subtitle {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .incidents-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .incident-item {
+            display: flex;
+            align-items: center;
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 15px;
+            gap: 15px;
+        }
+        .incident-item.severity-high {
+            border-left: 4px solid var(--vscode-charts-red);
+        }
+        .incident-item.severity-medium {
+            border-left: 4px solid var(--vscode-charts-orange);
+        }
+        .incident-item.severity-low {
+            border-left: 4px solid var(--vscode-charts-yellow);
+        }
+        .incident-timeline-marker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+        }
+        .incident-time {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 6px;
+        }
+        .incident-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .incident-marker.outage {
+            background: var(--vscode-charts-red);
+        }
+        .incident-marker.recovery {
+            background: var(--vscode-charts-green);
+        }
+        .incident-marker.maintenance {
+            background: var(--vscode-charts-blue);
+        }
+        .incident-details {
+            flex: 1;
+        }
+        .incident-title {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+        .incident-description {
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 8px;
+        }
+        .incident-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .incident-channel {
+            font-weight: bold;
+        }
+        .incident-duration {
+            color: var(--vscode-charts-orange);
+        }
+        .incident-impact {
+            color: var(--vscode-charts-red);
+        }
+        .incident-severity {
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+        }
+        .severity-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .severity-badge.high {
+            background: var(--vscode-charts-red);
+            color: white;
+        }
+        .severity-badge.medium {
+            background: var(--vscode-charts-orange);
+            color: white;
+        }
+        .severity-badge.low {
+            background: var(--vscode-charts-yellow);
+            color: black;
+        }
+        .empty-incidents {
+            text-align: center;
+            padding: 40px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .empty-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--vscode-foreground);
+        }
+        .empty-description {
+            font-size: 12px;
+        }
+        
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--vscode-panel-border);
+            border-top: 4px solid var(--vscode-charts-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* React Overview Component Fallback Styles */
+        .overview-root {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .overview-loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--vscode-descriptionForeground);
+        }
+        
+        /* Enhanced Tremor Integration Styles */
+        .tremor-base {
+            font-family: var(--vscode-font-family) !important;
+            color: var(--vscode-foreground) !important;
+        }
+        .tremor-Card-root {
+            background: var(--vscode-textBlockQuote-background) !important;
+            border: 1px solid var(--vscode-panel-border) !important;
+            color: var(--vscode-foreground) !important;
+        }
+        .tremor-Title-root {
+            color: var(--vscode-foreground) !important;
+        }
+        .tremor-Text-root {
+            color: var(--vscode-descriptionForeground) !important;
+        }
+        .tremor-Metric-root {
+            color: var(--vscode-foreground) !important;
+        }
+        .tremor-Badge-root {
+            background: var(--vscode-button-background) !important;
+            color: var(--vscode-button-foreground) !important;
+        }
+        .tremor-Button-root {
+            background: var(--vscode-button-background) !important;
+            color: var(--vscode-button-foreground) !important;
+            border: 1px solid var(--vscode-button-background) !important;
+        }
+        .tremor-Button-root:hover {
+            background: var(--vscode-button-hoverBackground) !important;
+        }
+        
+        /* Timeline React Bundle Fallback */
+        #timeline-swimlanes-root .loading {
+            min-height: 300px;
+        }
         </style>
         `;
     }

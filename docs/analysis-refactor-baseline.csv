@@ -1,0 +1,39 @@
+file_path,symbol_count,top_exports,refactor_scope,priority,notes
+src/report.ts,81,"ReportGenerator; generateMarkdownReport; generateJsonReport","Reports generator; split render helpers and data prep",medium,"Large file with multiple report formats"
+src/stats.ts,72,"StatsCalculator; calculateChannelStats; calculateGlobalStats","Keep as independent service; add unit tests and API docs",high,"Heavy compute logic used by dashboard and reports"
+src/storage.ts,53,"StorageManager; loadState; saveState; getChannelState","Storage manager: consider splitting disk IO from in-memory model",high,"Large API surface and persistence logic"
+src/guards.ts,44,"GuardManager; NetIfUpGuard; DnsGuard","Guard framework; small manager with registry",low,"Useful for runtime checks; low refactor priority"
+src/extension.ts,62,"activate; registerCommands; setupExtension","Top-level activation and wiring; avoid large refactors here",high,"Integration point—changes must be coordinated"
+src/types.ts,7,"Sample; ProbeResult; ChannelState","Types; review and centralize into src/types.ts",low,"Core types used across modules"
+src/export.ts,55,"DataExporter; exportJSON; exportCSV","Export utilities; low coupling",low,"Useful for analysis and testing"
+src/diskStorage.ts,62,"DiskStorageManager; migrateFromGlobalState; readJsonFile","Disk persistence; review error handling and migration",high,"Large IO surface and migration logic"
+src/runner/scheduler.ts,62,"Scheduler; calculateNextRun; scheduleNext","Scheduler logic; keep isolated; add integration tests",medium,"Complex timing logic; moderate priority"
+src/runner/channelRunner.ts,57,"ChannelRunner; runChannel; executeProbe","Channel execution and probe orchestration; isolate probes and runner state",high,"Core runtime flow—high impact"
+src/probes/tcp.ts,13,"TcpProbe; probe","TCP probe implementation",low,"Thin probe wrapper"
+src/probes/script.ts,16,"ScriptProbe; getShell","Script probe; platform-specific handling",low,"Keep but document shell behavior"
+src/probes/https.ts,20,"HttpsProbe; evaluateExpectations","HTTP probe; consider shared HTTP client utilities",low,"Contains expectation evaluation logic"
+src/probes/dns.ts,17,"DnsProbe; setCustomDnsServers","Probe implementation; small and testable modules",low,"Probe implementations are thin wrappers"
+src/config.ts,,,,,
+src/api.ts,,,,,
+src/ui/dashboardData.ts,79,"generateDashboardData; generateTimelineData; generateMetricsData","Keep as DataProvider; add unit tests and small API surface",medium,"Mostly pure functions; low coupling"
+src/ui/dashboardUtils.ts,17,"formatRelativeTime; generateQuickStats; calculateAverageLatency","Small helpers; add HasId alias and tighten types",low,"Short, pure utilities — minor cleanup"
+src/ui/dashboard.ts,96,"DashboardManager; generateDashboardHTML; getBaseCSS","Split into Renderer, DataProvider, EventBinder, Controller, StatsCalculator",high,"Monolithic webview generation and many helpers — first target"
+src/ui/treeView.ts,70,"ChannelTreeProvider; ChannelTreeItem; generateChannelDetailsHTML","Extract detail HTML renderer; centralize actions (run/pause/toggle) into Controller",medium,"Contains UI HTML generation and action handlers"
+src/ui/statusTreeView.ts,25,"StatusTreeDataProvider; StatusTreeItem","Small provider for status tree; low priority",low,"Lean module"
+src/ui/statusBar.ts,64,"StatusBarManager; updateStatusBar; findInternetChannel","Status bar presentation; small surface",low,"Minor refactor to reuse icons"
+src/ui/notifications.ts,112,"NotificationManager; SnoozeState; showNotification","Large notification manager; consider splitting snooze storage and UI prompts",medium,"Many user-interaction flows"
+src/ui/incidentsTreeView.ts,99,"IncidentsTreeProvider; Incident; generateDemoIncidents","Extract date parsing and demo generators; keep provider logic, add tests",medium,"Large but cohesive; priority after dashboard"
+src/ui/views/timelineView.ts,27,"generateTimelineSwimlanesView; generateTimelineHeatmapView","View generators for timeline; keep under ui/views",low,"Pure rendering helpers"
+src/ui/views/overviewView.ts,4,"generateOverviewDashboard","Small overview view renderer",low,"Tiny file"
+src/ui/views/monitorView.ts,5,"generateLiveMonitorView","Live monitor view generator",low,"Small renderer"
+src/ui/views/metricsView.ts,4,"generateCompactMetricsView","Metrics view generator",low,"Tiny file"
+src/ui/react/shared/baseStyles.ts,1,"baseStyles","Shared React base styles",low,"Very small"
+test/unit/dashboardUtils.test.ts,30,"(tests)","Unit tests for dashboard utils","test","Contains multiple assertions; keep as-is"
+test/unit/probes.test.ts,23,"(tests)","Unit tests for probes","test","Probe behavior tests"
+test/unit/guards.test.ts,19,"(tests)","Unit tests for guards","test","Guard checks and cache tests"
+test/unit/simple-test.ts,,,,,
+test/e2e/watch.test.ts,,,,,
+test/e2e/probes.test.ts,,,,,
+test/e2e/index.ts,,,,,
+test/e2e/extension.test.ts,,,,,
+test/e2e/config.test.ts,,,,,

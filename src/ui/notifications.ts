@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
+import { formatDuration } from './dashboardUtils';
 import { Scheduler, FishyCondition } from '../runner/scheduler';
 
 interface SnoozeState {
@@ -107,7 +108,7 @@ export class NotificationManager {
         const channels = this.configManager.getChannels();
         const channel = channels.find(c => c.id === channelId);
         const channelName = channel?.name || channelId;
-        const durationStr = this.formatDuration(duration);
+        const durationStr = formatDuration(duration);
 
         this.showNotification(
             `✅ Outage resolved: ${channelName}`,
@@ -192,7 +193,7 @@ export class NotificationManager {
             
             const durationStr = typeof duration === 'string' 
                 ? duration 
-                : this.formatDuration(duration);
+                : formatDuration(duration);
             
             vscode.window.showInformationMessage(
                 `🔍 Health Watch started for ${durationStr}`
@@ -319,7 +320,7 @@ export class NotificationManager {
 
         await this.setSnooze(channelId, duration, reason);
         
-        const durationStr = this.formatDuration(duration);
+        const durationStr = formatDuration(duration);
         const message = reason === 'multi-channel' 
             ? `🔕 Snoozed notifications for multiple channels (${durationStr})`
             : `🔕 Snoozed notifications for ${channelName} (${durationStr})`;
@@ -433,7 +434,7 @@ export class NotificationManager {
             const channel = channels.find(c => c.id === snooze.channelId);
             const channelName = channel?.name || snooze.channelId;
             const remaining = (snooze.startTime + snooze.duration) - Date.now();
-            const remainingStr = this.formatDuration(remaining);
+            const remainingStr = formatDuration(remaining);
             
             return {
                 label: `$(mute) ${channelName}`,
@@ -560,29 +561,14 @@ export class NotificationManager {
         }
     }
 
-    private formatDuration(durationMs: number): string {
-        const seconds = Math.floor(durationMs / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
-
-        if (days > 0) {
-            return `${days}d ${hours % 24}h`;
-        } else if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        } else {
-            return `${seconds}s`;
-        }
-    }
+    // formatDuration method removed - now using centralized utility from dashboardUtils
 
     async showWatchEndNotification(watch: any, reportPath: string) {
         if (this.configManager.isInQuietHours()) {
             return;
         }
 
-        const duration = this.formatDuration(watch.endTime - watch.startTime);
+        const duration = formatDuration(watch.endTime - watch.startTime);
         const message = `🔍 Health Watch completed (${duration})`;
         
         const choice = await vscode.window.showInformationMessage(

@@ -221,14 +221,24 @@ export function generateIncidentsData(
         const channel = channels.find(c => c.id === outage.channelId);
         
         // Add outage start incident
+        const impactDuration = outage.actualDuration || outage.duration;
+        const impactMinutes = impactDuration ? Math.round(impactDuration / (60 * 1000)) : undefined;
+        
+        // Create enhanced description showing actual vs detected impact  
+        let description = `Service became unavailable. Reason: ${outage.reason || 'Unknown'}`;
+        if (outage.actualDuration && outage.duration && outage.actualDuration !== outage.duration) {
+            const detectedMinutes = Math.round(outage.duration / (60 * 1000));
+            description += ` (Impact: ${impactMinutes}m, detected after ${Math.round((outage.confirmedAt || outage.startTime) - (outage.firstFailureTime || outage.startTime)) / (60 * 1000)}m)`;
+        }
+        
         incidents.push({
-            timestamp: outage.startTime,
+            timestamp: outage.firstFailureTime || outage.startTime,  // Show actual start time
             title: `${channel?.name || outage.channelId} Outage Started`,
-            description: `Service became unavailable. Reason: ${outage.reason || 'Unknown'}`,
+            description: description,
             severity: 'critical',
             type: 'outage',
             channel: channel?.name || outage.channelId,
-            duration: outage.duration ? Math.round(outage.duration / (60 * 1000)) : undefined,
+            duration: impactMinutes,
             impact: '100% of requests affected'
         });
         
@@ -237,11 +247,11 @@ export function generateIncidentsData(
             incidents.push({
                 timestamp: outage.endTime,
                 title: `${channel?.name || outage.channelId} Service Recovered`,
-                description: `Service restored after ${outage.duration ? Math.round(outage.duration / (60 * 1000)) : 'unknown'} minutes`,
+                description: `Service restored after ${impactMinutes || 'unknown'} minutes of impact`,
                 severity: 'info',
                 type: 'recovery',
                 channel: channel?.name || outage.channelId,
-                duration: outage.duration ? Math.round(outage.duration / (60 * 1000)) : undefined,
+                duration: impactMinutes,
                 impact: 'Service fully restored'
             });
         }

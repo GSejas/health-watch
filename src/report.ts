@@ -5,6 +5,7 @@ import { WatchSession, ChannelStats, Sample, Outage } from './types';
 import { ConfigManager } from './config';
 import { StorageManager } from './storage';
 import { StatsCalculator } from './stats';
+import { formatDuration, formatTimestamp } from './ui/dashboardUtils';
 
 export interface ReportData {
     session: WatchSession;
@@ -22,7 +23,7 @@ export class ReportGenerator {
 
     async generateReport(session: WatchSession): Promise<{ markdownPath: string; jsonPath: string }> {
         const reportData = this.prepareReportData(session);
-        const timestamp = this.formatTimestamp(session.endTime || Date.now());
+        const timestamp = formatTimestamp(session.endTime || Date.now());
         
         const markdownContent = this.generateMarkdownReport(reportData, timestamp);
         const jsonContent = this.generateJsonReport(reportData);
@@ -68,7 +69,7 @@ export class ReportGenerator {
     private generateMarkdownReport(data: ReportData, timestamp: string): string {
         const { session, channelStats, globalStats, outages, recommendations, sloBreaches } = data;
         const reportConfig = this.configManager.getReportConfig();
-        const duration = this.formatDuration(session.endTime! - session.startTime);
+        const duration = formatDuration(session.endTime! - session.startTime);
         
         const lines: string[] = [];
         lines.push(`# Health Watch Report`);
@@ -91,8 +92,8 @@ export class ReportGenerator {
         
         for (const [channelId, stats] of channelStats.entries()) {
             const availability = `${stats.availability.toFixed(1)}%`;
-            const mttr = this.formatDuration(stats.mttr);
-            const longest = this.formatDuration(stats.longestOutage);
+            const mttr = formatDuration(stats.mttr);
+            const longest = formatDuration(stats.longestOutage);
             const p95Latency = `${Math.round(stats.latencyStats.p95)}ms`;
             const topFailure = stats.topFailureReason.length > 20 
                 ? stats.topFailureReason.substring(0, 17) + '...'
@@ -136,7 +137,7 @@ export class ReportGenerator {
             for (const outage of outages.slice(-10)) {
                 const start = new Date(outage.startTime).toLocaleTimeString();
                 const end = outage.endTime ? new Date(outage.endTime).toLocaleTimeString() : 'Ongoing';
-                const duration = outage.duration ? this.formatDuration(outage.duration) : 'N/A';
+                const duration = outage.duration ? formatDuration(outage.duration) : 'N/A';
                 const reason = outage.reason.length > 30 
                     ? outage.reason.substring(0, 27) + '...'
                     : outage.reason;
@@ -425,28 +426,7 @@ export class ReportGenerator {
         return 'Other Error';
     }
 
-    private formatDuration(durationMs: number): string {
-        const seconds = Math.floor(durationMs / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
+    // formatDuration method removed - now using centralized utility from dashboardUtils
 
-        if (hours > 0) {
-            return `${hours}h ${minutes % 60}m`;
-        } else if (minutes > 0) {
-            return `${minutes}m ${seconds % 60}s`;
-        } else {
-            return `${seconds}s`;
-        }
-    }
-
-    private formatTimestamp(timestamp: number): string {
-        const date = new Date(timestamp);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hour = String(date.getHours()).padStart(2, '0');
-        const minute = String(date.getMinutes()).padStart(2, '0');
-        
-        return `${year}${month}${day}-${hour}${minute}`;
-    }
+    // formatTimestamp method removed - now using centralized utility from dashboardUtils
 }

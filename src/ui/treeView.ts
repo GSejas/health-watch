@@ -115,7 +115,7 @@ export class ChannelTreeItem extends vscode.TreeItem {
     private getContextValue(): string {
         const parts = ['channel'];
         
-        // Add state-based context values for enhanced menu options
+        // Add primary state context (idle, paused, running)
         if (this.channelInfo.isPaused) {
             parts.push('paused');
         } else if (this.channelInfo.isRunning) {
@@ -124,12 +124,14 @@ export class ChannelTreeItem extends vscode.TreeItem {
             parts.push('idle');
         }
         
-        // Add state-based context for conditional menus
+        // Add connectivity state for conditional menus
         parts.push(this.channelInfo.state);
         
-        // Add type-based context for type-specific actions
+        // Add type for type-specific actions
         parts.push(this.channelInfo.type);
         
+        // Final contextValue format: channel-{primary-state}-{connectivity-state}-{type}
+        // Examples: channel-idle-online-https, channel-paused-offline-tcp, channel-running-unknown-dns
         return parts.join('-');
     }
 }

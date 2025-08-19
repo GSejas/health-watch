@@ -8,28 +8,15 @@
  */
 
 import { ChannelState, ChannelInfo } from '../types';
+import { formatDistanceToNow, intervalToDuration, formatDuration as dateFnsFormatDuration, format } from 'date-fns';
 
 /**
- * Formats a timestamp into a human-readable relative time string
+ * Formats a timestamp into a human-readable relative time string using date-fns
  * @param timestamp - Unix timestamp in milliseconds
- * @returns Formatted relative time string (e.g., "5m ago", "2h ago")
+ * @returns Formatted relative time string (e.g., "5 minutes ago", "2 hours ago")
  */
 export function formatRelativeTime(timestamp: number): string {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (seconds < 60) {
-        return `${seconds}s ago`;
-    } else if (minutes < 60) {
-        return `${minutes}m ago`;
-    } else if (hours < 24) {
-        return `${hours}h ago`;
-    } else {
-        return new Date(timestamp).toLocaleDateString();
-    }
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
 }
 
 /**
@@ -80,25 +67,48 @@ export function generateQuickStats(channels: Array<{ id: string }>, states: Map<
 }
 
 /**
- * Formats a duration in milliseconds to a human-readable string
+ * Formats a duration in milliseconds into a human-readable string using date-fns
  * @param durationMs - Duration in milliseconds
  * @returns Formatted duration string (e.g., "2h 30m", "45m", "30s")
  */
 export function formatDuration(durationMs: number): string {
-    const seconds = Math.floor(durationMs / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
+    const duration = intervalToDuration({ start: 0, end: durationMs });
+    
+    // Custom formatter to match our existing format
+    const parts = [];
+    if (duration.days) parts.push(`${duration.days}d`);
+    if (duration.hours) parts.push(`${duration.hours}h`);
+    if (duration.minutes) parts.push(`${duration.minutes}m`);
+    if (duration.seconds && parts.length < 2) parts.push(`${duration.seconds}s`); // Only show seconds if not too verbose
+    
+    return parts.slice(0, 2).join(' ') || '0s'; // Show max 2 units, fallback to "0s"
+}
 
-    if (days > 0) {
-        return `${days}d ${hours % 24}h`;
-    } else if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${seconds % 60}s`;
-    } else {
-        return `${seconds}s`;
+/**
+ * Formats a timestamp into a compact string format for filenames using date-fns
+ * @param timestamp - Unix timestamp in milliseconds
+ * @returns Formatted timestamp string (e.g., "20241219-1430")
+ */
+export function formatTimestamp(timestamp: number): string {
+    return format(new Date(timestamp), 'yyyyMMdd-HHmm');
+}
+
+/**
+ * Formats watch duration handling different input formats using date-fns
+ * @param watch - Watch object with duration property
+ * @returns Formatted duration string (e.g., "2h 30m", "Forever")
+ */
+export function formatWatchDuration(watch: any): string {
+    if (watch.duration === 'forever') {
+        return 'Forever';
     }
+    
+    if (typeof watch.duration === 'string') {
+        return watch.duration;
+    }
+    
+    const ms = typeof watch.duration === 'number' ? watch.duration : 60 * 60 * 1000;
+    return formatDuration(ms);
 }
 
 /**

@@ -42,8 +42,10 @@ export function generateOverviewDashboard(data: OverviewViewData): string {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} 'unsafe-inline';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Overview</title>
+        <!-- Tremor CSS for React components -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
         ${baseCSS}
     </head>
     <body>

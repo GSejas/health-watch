@@ -1,5 +1,6 @@
 import React from 'react';
 import { TimelineData } from '../../dashboardData';
+import { baseStyles } from '../shared/baseStyles';
 
 export interface TimelineSwimlanesViewProps {
     channels: any[];
@@ -186,6 +187,245 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
                     );
                 })}
             </div>
+            
+            <style>{swimlanesStyles}</style>
         </div>
     );
 };
+
+const swimlanesStyles = `
+    ${baseStyles}
+    
+    /* Timeline Swimlanes Specific Styles */
+    .timeline-container {
+        /* Base styles inherited from baseStyles */
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--vscode-widget-border);
+    }
+
+    .timeline-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .time-range-selector {
+        background: var(--vscode-dropdown-background);
+        color: var(--vscode-dropdown-foreground);
+        border: 1px solid var(--vscode-dropdown-border);
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 12px;
+        min-width: 120px;
+    }
+
+    .time-range-selector:focus {
+        outline: 1px solid var(--vscode-focusBorder);
+    }
+
+    .timeline-legend {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 20px;
+        padding: 12px;
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border-radius: 6px;
+        border: 1px solid var(--vscode-widget-border);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--vscode-foreground);
+    }
+
+    .legend-color {
+        width: 16px;
+        height: 12px;
+        border-radius: 2px;
+        border: 1px solid var(--vscode-widget-border);
+    }
+
+    .legend-color.bar-online {
+        background: #4caf50;
+    }
+
+    .legend-color.bar-degraded {
+        background: #ff9800;
+    }
+
+    .legend-color.bar-offline {
+        background: #f44336;
+    }
+
+    .legend-color.bar-no-data {
+        background: var(--vscode-input-background);
+    }
+
+    .timeline-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .timeline-labels {
+        display: flex;
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border-bottom: 2px solid var(--vscode-widget-border);
+    }
+
+    .channel-label-header {
+        width: 180px;
+        flex-shrink: 0;
+        padding: 12px 16px;
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--vscode-foreground);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-right: 1px solid var(--vscode-widget-border);
+    }
+
+    .date-label {
+        flex: 1;
+        padding: 12px 8px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--vscode-foreground);
+        border-right: 1px solid var(--vscode-widget-border);
+        min-width: 60px;
+    }
+
+    .date-label:last-child {
+        border-right: none;
+    }
+
+    .timeline-row {
+        display: flex;
+        background: var(--vscode-editor-background);
+        border-bottom: 1px solid var(--vscode-widget-border);
+        transition: background-color 0.2s ease;
+    }
+
+    .timeline-row:hover {
+        background: var(--vscode-list-hoverBackground);
+    }
+
+    .timeline-row:last-child {
+        border-bottom: none;
+    }
+
+    .channel-label {
+        width: 180px;
+        flex-shrink: 0;
+        padding: 12px 16px;
+        border-right: 1px solid var(--vscode-widget-border);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .channel-name {
+        font-weight: 500;
+        font-size: 13px;
+        color: var(--vscode-foreground);
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .channel-type {
+        font-size: 9px;
+        color: var(--vscode-descriptionForeground);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .timeline-bar {
+        flex: 1;
+        height: 60px;
+        border-right: 1px solid var(--vscode-widget-border);
+        position: relative;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        min-width: 60px;
+    }
+
+    .timeline-bar:last-child {
+        border-right: none;
+    }
+
+    .timeline-bar:hover {
+        transform: scale(1.02);
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .bar-fill {
+        width: 100%;
+        border-radius: 2px 2px 0 0;
+        transition: all 0.2s ease;
+        min-height: 2px;
+    }
+
+    .timeline-bar.bar-online .bar-fill {
+        background: linear-gradient(to top, #4caf50, #66bb6a);
+    }
+
+    .timeline-bar.bar-degraded .bar-fill {
+        background: linear-gradient(to top, #ff9800, #ffb74d);
+    }
+
+    .timeline-bar.bar-offline .bar-fill {
+        background: linear-gradient(to top, #f44336, #e57373);
+    }
+
+    .timeline-bar.bar-no-data .bar-fill {
+        background: var(--vscode-input-background);
+        border: 1px dashed var(--vscode-widget-border);
+    }
+
+    .sample-count {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 9px;
+        color: white;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+    }
+
+    .timeline-bar.bar-no-data .sample-count {
+        color: var(--vscode-descriptionForeground);
+        text-shadow: none;
+    }
+
+    /* Empty state */
+    .empty-timeline {
+        /* Inherits from .empty-state in baseStyles */
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--vscode-descriptionForeground);
+    }
+`;

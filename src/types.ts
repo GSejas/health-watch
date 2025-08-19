@@ -21,6 +21,7 @@ export interface ChannelState {
     lastStateChange: number;
     backoffMultiplier: number;
     samples: Sample[];
+    firstFailureTime?: number;  // Track when current failure streak started
 }
 
 export interface ChannelInfo {
@@ -46,11 +47,17 @@ export interface WatchSession {
 
 export interface Outage {
     channelId: string;
-    startTime: number;
+    startTime: number;          // Legacy: when threshold crossed (for compatibility)
     endTime?: number;
-    duration?: number;
+    duration?: number;          // Legacy: detected duration (for compatibility)
     reason: string;
     recoveryTime?: number;
+    
+    // Enhanced tracking (new fields)
+    firstFailureTime?: number;  // When problems actually started
+    confirmedAt?: number;       // When threshold crossed (same as startTime for new outages)
+    actualDuration?: number;    // Real impact: endTime - firstFailureTime
+    failureCount?: number;      // Failures before confirmation
 }
 
 export interface ChannelStats {
