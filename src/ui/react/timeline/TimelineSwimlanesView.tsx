@@ -1,6 +1,6 @@
 import React from 'react';
 import { TimelineData } from '../../dashboardData';
-import '../styles/tailwind.css';
+import { baseStyles } from '../shared/baseStyles';
 
 export interface TimelineSwimlanesViewProps {
     channels: any[];
@@ -50,9 +50,9 @@ const TimelineControls: React.FC<{
     };
 
     return (
-        <div className="flex gap-3 items-center">
+        <div className="timeline-controls">
             <select 
-                className="bg-vscode-dropdown text-vscode-foreground border border-vscode-border rounded px-2 py-1.5 text-xs min-w-[120px] focus:outline-none focus:ring-1 focus:ring-vscode-focus" 
+                className="time-range-selector" 
                 value={timeRange}
                 onChange={handleChange}
             >

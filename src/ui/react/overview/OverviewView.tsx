@@ -1,6 +1,5 @@
 import React from 'react';
 import { formatRelativeTime, formatWatchDuration } from '../../dashboardUtils';
-import '../styles/tailwind.css';
 
 export interface OverviewViewProps {
     channels: any[];
@@ -54,79 +53,70 @@ const ChannelCard: React.FC<ChannelCardProps> = ({ channel, state }) => {
     };
 
     return (
-        <div className="hw-card" data-channel-id={channel.id}>
+        <div className="channel-card" data-channel-id={channel.id}>
             {/* Header with status badge */}
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="text-base font-medium text-vscode-foreground">{channel.name || channel.id}</h3>
-                <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    status === 'online' ? 'hw-badge-online' :
-                    status === 'offline' ? 'hw-badge-offline' :
-                    'hw-badge-unknown'
-                }`}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '500', margin: '0' }}>{channel.name || channel.id}</h3>
+                <span className={`status-badge status-${status}`}>
                     {status.toUpperCase()}
                 </span>
             </div>
 
             {/* Channel details */}
-            <div className="space-y-2 mb-3">
-                <div className="flex justify-between items-center py-1 text-xs">
-                    <span className="text-vscode-secondary">Type</span>
-                    <span className="font-medium text-vscode-foreground">{channel.type?.toUpperCase() || 'Unknown'}</span>
+            <div style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                    <span style={{ opacity: '0.7' }}>Type</span>
+                    <span style={{ fontWeight: '500' }}>{channel.type?.toUpperCase() || 'Unknown'}</span>
                 </div>
                 
                 {channel.url && (
-                    <div className="flex justify-between items-center py-1 text-xs">
-                        <span className="text-vscode-secondary">URL</span>
-                        <span className="font-medium truncate max-w-36 text-vscode-foreground" title={channel.url}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                        <span style={{ opacity: '0.7' }}>URL</span>
+                        <span style={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '144px' }} title={channel.url}>
                             {channel.url}
                         </span>
                     </div>
                 )}
                 
                 {channel.target && (
-                    <div className="flex justify-between items-center py-1 text-xs">
-                        <span className="text-vscode-secondary">Target</span>
-                        <span className="font-medium text-vscode-foreground">{channel.target}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                        <span style={{ opacity: '0.7' }}>Target</span>
+                        <span style={{ fontWeight: '500' }}>{channel.target}</span>
                     </div>
                 )}
                 
-                <div className="flex justify-between items-center py-1 text-xs">
-                    <span className="text-vscode-secondary">Latency</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        getLatencyColor(latency) === 'emerald' ? 'bg-vscode-success text-white' :
-                        getLatencyColor(latency) === 'yellow' ? 'bg-vscode-warning text-black' :
-                        getLatencyColor(latency) === 'red' ? 'bg-vscode-error text-white' :
-                        'bg-vscode-secondary text-white'
-                    }`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                    <span style={{ opacity: '0.7' }}>Latency</span>
+                    <span className={`latency-badge latency-${getLatencyColor(latency)}`}>
                         {latency ? `${latency}ms` : 'N/A'}
                     </span>
                 </div>
                 
-                <div className="flex justify-between items-center py-1 text-xs">
-                    <span className="text-vscode-secondary">Last Check</span>
-                    <span className="text-xs text-vscode-secondary">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px' }}>
+                    <span style={{ opacity: '0.7' }}>Last Check</span>
+                    <span style={{ fontSize: '12px', opacity: '0.7' }}>
                         {lastCheck ? formatRelativeTime(lastCheck) : 'Never'}
                     </span>
                 </div>
             </div>
 
             {error && (
-                <div className="my-3 p-2 bg-red-50 border border-red-200 rounded">
-                    <div className="text-xs font-bold text-red-700 mb-1">⚠️ Error</div>
-                    <div className="text-xs text-red-700">{error}</div>
+                <div className="error-box">
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>⚠️ Error</div>
+                    <div style={{ fontSize: '12px' }}>{error}</div>
                 </div>
             )}
             
             {/* Action buttons */}
-            <div className="flex gap-2 justify-center mt-3 pt-3 border-t border-vscode-border">
+            <div className="channel-actions">
                 <button 
-                    className="hw-button-primary"
+                    className="btn btn-primary"
                     onClick={handleRunChannel}
                 >
                     ▶️ Run Now
                 </button>
                 <button 
-                    className="hw-button-secondary"
+                    className="btn btn-secondary"
                     onClick={handleViewDetails}
                 >
                     📊 Details
@@ -142,15 +132,10 @@ const MetricCard: React.FC<{
     detail: string;
     color?: string;
 }> = ({ label, value, detail, color = 'gray' }) => (
-    <div className="hw-card text-center">
-        <div className="text-xs text-vscode-secondary mb-2">{label}</div>
-        <div className={`text-2xl font-bold mb-1 ${
-            color === 'emerald' ? 'text-vscode-success' :
-            color === 'red' ? 'text-vscode-error' :
-            color === 'yellow' ? 'text-vscode-warning' :
-            'text-vscode-secondary'
-        }`}>{value}</div>
-        <div className="text-xs text-vscode-secondary">{detail}</div>
+    <div className="metric-card">
+        <div style={{ fontSize: '12px', opacity: '0.7', marginBottom: '8px' }}>{label}</div>
+        <div className={`metric-value metric-${color}`}>{value}</div>
+        <div style={{ fontSize: '12px', opacity: '0.7' }}>{detail}</div>
     </div>
 );
 
@@ -164,19 +149,19 @@ const WatchStatusBanner: React.FC<{ currentWatch: any }> = ({ currentWatch }) =>
     };
 
     return (
-        <div className="hw-card border-vscode-info bg-opacity-10 mb-6 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-                <span className="text-xl">🔍</span>
+        <div className="watch-banner">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '20px' }}>🔍</span>
                 <div>
-                    <h3 className="font-medium text-vscode-info mb-1">Active Watch Session</h3>
-                    <p className="text-xs text-vscode-secondary">
+                    <h3 className="watch-title">Active Watch Session</h3>
+                    <p style={{ fontSize: '12px', opacity: '0.7' }}>
                         Duration: {formatWatchDuration(currentWatch)} • 
                         Started: {new Date(currentWatch.startTime).toLocaleString()}
                     </p>
                 </div>
             </div>
             <button 
-                className="bg-vscode-error text-white px-3 py-1.5 rounded text-sm hover:opacity-80 transition-opacity"
+                className="btn btn-danger"
                 onClick={handleStopWatch}
             >
                 Stop Watch
@@ -195,14 +180,14 @@ const EmptyState: React.FC = () => {
     };
 
     return (
-        <div className="hw-card text-center py-10">
-            <div className="text-5xl mb-4">🔧</div>
-            <h3 className="text-lg font-medium text-vscode-foreground mb-3">No Channels Configured</h3>
-            <p className="text-vscode-secondary max-w-md mx-auto mb-5">
+        <div className="empty-state">
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔧</div>
+            <h3 style={{ fontSize: '18px', fontWeight: '500', marginBottom: '12px' }}>No Channels Configured</h3>
+            <p style={{ opacity: '0.7', maxWidth: '400px', margin: '0 auto 20px' }}>
                 Add channels to your .healthwatch.json file to start monitoring your services.
             </p>
             <button 
-                className="hw-button-primary"
+                className="btn btn-primary"
                 onClick={handleOpenConfig}
             >
                 ⚙️ Open Configuration
@@ -248,9 +233,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     };
 
     return (
-        <div className="p-5 max-w-7xl mx-auto font-vscode">
+        <div className="overview-container">
             {/* Quick Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="metrics-grid">
                 <MetricCard
                     label="Availability"
                     value={`${availability}%`}
@@ -284,7 +269,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             {/* Channel Status Cards */}
             {channels.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="channels-grid">
                     {channels.map(channel => (
                         <ChannelCard
                             key={channel.id}

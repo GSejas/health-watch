@@ -1,0 +1,27 @@
+{
+  "retentionDays": 30,
+  "backends": {
+    "samples": "mysql",
+    "states": "disk",
+    "sessions": "disk", 
+    "outages": "mysql"
+  },
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "healthwatch",
+    "username": "healthwatch_user",
+    "ssl": false,
+    "maxConnections": 10,
+    "retryAttempts": 3
+  },
+  "file": {
+    "directory": "~/.vscode/extensions/healthwatch/storage",
+    "maxFileSize": 10485760,
+    "compressionEnabled": true
+  },
+  "security": {
+    "encryptionEnabled": false,
+    "credentialStore": "vscode"
+  }
+}

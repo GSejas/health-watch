@@ -1,6 +1,6 @@
 import React from 'react';
 import { HeatmapData } from '../../dashboardData';
-import '../styles/tailwind.css';
+import { baseStyles } from '../shared/baseStyles';
 
 export interface TimelineHeatmapViewProps {
     channels: any[];
@@ -23,22 +23,22 @@ const getHeatmapTooltip = (channelName: string, hourData: any, hourIndex: number
 };
 
 const HeatmapLegend: React.FC = () => (
-    <div className="hw-card mb-6">
-        <div className="flex items-center space-x-4">
-            <span className="text-sm text-vscode-foreground">Availability:</span>
-            <div className="flex space-x-2">
-                <span className="bg-vscode-error text-white px-2 py-1 rounded text-xs font-bold">0%</span>
-                <span className="bg-vscode-warning text-black px-2 py-1 rounded text-xs font-bold">50%</span>
-                <span className="bg-vscode-success text-white px-2 py-1 rounded text-xs font-bold">100%</span>
+    <div className="heatmap-legend">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontSize: '14px' }}>Availability:</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+                <span className="availability-badge availability-low">0%</span>
+                <span className="availability-badge availability-medium">50%</span>
+                <span className="availability-badge availability-high">100%</span>
             </div>
         </div>
     </div>
 );
 
 const HourLabels: React.FC = () => (
-    <div className="flex justify-between mt-4 px-4">
+    <div className="hour-labels">
         {[0, 6, 12, 18].map(hour => (
-            <span key={hour} className="text-xs text-vscode-secondary">
+            <span key={hour} className="hour-label">
                 {hour.toString().padStart(2, '0')}:00
             </span>
         ))}
@@ -64,43 +64,43 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
 
     if (channels.length === 0) {
         return (
-            <div className="max-w-4xl mx-auto p-6">
-                <div className="hw-card text-center py-12">
-                    <div className="text-6xl mb-4">🔥</div>
-                    <h3 className="text-lg font-medium text-vscode-foreground mb-2">No Heatmap Data</h3>
-                    <p className="text-vscode-secondary">Configure channels to see hourly availability patterns</p>
+            <div className="heatmap-container">
+                <div className="empty-heatmap">
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔥</div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>No Heatmap Data</h3>
+                    <p style={{ opacity: '0.7' }}>Configure channels to see hourly availability patterns</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-6 font-vscode">
-            <div className="hw-card mb-6">
-                <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-vscode-foreground mb-2">Hourly Availability Heatmap</h2>
-                    <p className="text-vscode-secondary">Last 7 days, hourly resolution</p>
+        <div className="heatmap-container">
+            <div className="heatmap-card">
+                <div className="heatmap-header">
+                    <h2 className="heatmap-title">Hourly Availability Heatmap</h2>
+                    <p className="heatmap-subtitle">Last 7 days, hourly resolution</p>
                 </div>
                 
                 <HeatmapLegend />
                 
-                <div className="space-y-4">
+                <div className="channels-heatmap-grid">
                     {channels.map(channel => {
                         const channelHeatmap = heatmapData[channel.id] || [];
                         return (
-                            <div key={channel.id} className="hw-card">
-                                <div className="flex justify-between items-center mb-4">
+                            <div key={channel.id} className="channel-heatmap-card">
+                                <div className="channel-heatmap-header">
                                     <div>
-                                        <h3 className="text-lg font-medium text-vscode-foreground">{channel.name || channel.id}</h3>
-                                        <p className="text-sm text-vscode-secondary">{channel.type?.toUpperCase()}</p>
+                                        <h3 className="channel-heatmap-name">{channel.name || channel.id}</h3>
+                                        <p className="channel-heatmap-type">{channel.type?.toUpperCase()}</p>
                                     </div>
                                 </div>
                                 
-                                <div className="flex gap-1 mb-2 flex-wrap">
+                                <div className="heatmap-cells">
                                     {channelHeatmap.map((hourData, index) => (
                                         <div
                                             key={index}
-                                            className="w-4 h-4 rounded-sm cursor-pointer transition-transform hover:scale-110"
+                                            className="heatmap-cell"
                                             style={{ backgroundColor: getHeatmapColor(hourData.availability) }}
                                             title={getHeatmapTooltip(channel.name || channel.id, hourData, index)}
                                         />
@@ -113,6 +113,153 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
 
                 <HourLabels />
             </div>
+            
+            <style>{heatmapStyles}</style>
         </div>
     );
 };
+
+const heatmapStyles = `
+    ${baseStyles}
+    
+    /* Heatmap Specific Styles */
+    .heatmap-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+        font-family: var(--vscode-font-family);
+    }
+
+    .heatmap-card {
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .heatmap-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .heatmap-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--vscode-foreground);
+        margin: 0 0 8px 0;
+    }
+
+    .heatmap-subtitle {
+        color: var(--vscode-descriptionForeground);
+        margin: 0;
+    }
+
+    .heatmap-legend {
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+
+    .availability-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .availability-badge.availability-low {
+        background: var(--vscode-errorBackground);
+        color: var(--vscode-errorForeground);
+    }
+
+    .availability-badge.availability-medium {
+        background: var(--vscode-warningBackground);
+        color: var(--vscode-warningForeground);
+    }
+
+    .availability-badge.availability-high {
+        background: var(--vscode-notificationsInfoIcon-foreground);
+        color: white;
+    }
+
+    .channels-heatmap-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .channel-heatmap-card {
+        background: var(--vscode-editor-inactiveSelectionBackground);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 6px;
+        padding: 16px;
+    }
+
+    .channel-heatmap-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .channel-heatmap-name {
+        font-size: 18px;
+        font-weight: 500;
+        color: var(--vscode-foreground);
+        margin: 0 0 4px 0;
+    }
+
+    .channel-heatmap-type {
+        font-size: 14px;
+        color: var(--vscode-descriptionForeground);
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .heatmap-cells {
+        display: flex;
+        gap: 2px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .heatmap-cell {
+        width: 16px;
+        height: 16px;
+        border-radius: 2px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        border: 1px solid var(--vscode-widget-border);
+    }
+
+    .heatmap-cell:hover {
+        transform: scale(1.1);
+        z-index: 10;
+    }
+
+    .hour-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding: 0 16px;
+    }
+
+    .hour-label {
+        font-size: 12px;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    /* Empty State */
+    .empty-heatmap {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--vscode-descriptionForeground);
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-widget-border);
+        border-radius: 8px;
+    }
+`;

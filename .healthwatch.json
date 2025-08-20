@@ -5,14 +5,16 @@
       "name": "Internet Connectivity",
       "type": "https",
       "url": "https://8.8.8.8",
-      "intervalSec": 30
+      "intervalSec": 30,
+      "icon": "$(server)"
     },
     {
       "id": "test-basic",
       "name": "Basic Test",
       "type": "https",
       "url": "https://httpbin.org/status/200",
-      "intervalSec": 30
+      "intervalSec": 30,
+      "icon": "$(server)"
     }
   ]
 }

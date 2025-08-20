@@ -75,8 +75,7 @@ export function generateTimelineSwimlanesView(data: TimelineSwimlanesViewData & 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Timeline Swimlanes</title>
-        <!-- Tremor CSS for React components -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
+        <!-- Timeline Component Styles -->
         ${baseCSS}
     </head>
     <body>
@@ -141,8 +140,7 @@ export function generateTimelineHeatmapView(data: TimelineHeatmapViewData & { ti
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Timeline Heatmap</title>
-        <!-- Tremor CSS for React components -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
+        <!-- Timeline Component Styles -->
         ${baseCSS}
     </head>
     <body>
@@ -207,8 +205,7 @@ export function generateTimelineIncidentsView(data: TimelineIncidentsViewData & 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
         <title>Health Watch - Incidents Timeline</title>
-        <!-- Tremor CSS for React components -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tremor/react@3.18.7/dist/esm/tremor.css">
+        <!-- Timeline Component Styles -->
         ${baseCSS}
     </head>
     <body>

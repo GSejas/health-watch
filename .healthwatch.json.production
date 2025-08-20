@@ -141,4 +141,19 @@
       "timeoutMs": 2000
     }
   ]
+  ,
+  "statusBar": {
+    "mode": "compact",
+    "icons": {
+      "online": "$(check)",
+      "offline": "$(error)",
+      "unknown": "$(question)"
+    },
+    "format": {
+      "showLatency": false,
+      "separator": ":",
+      "maxChannelItems": 6,
+      "order": "explicit"
+    }
+  }
 }

@@ -2,25 +2,7 @@
 
 A local-first VS Code extension for monitoring multi-channel connectivity (public internet + VPN-only internal services) with intelligent baseline tracking, interactive dashboards, and automatic report generation.
 
-## ✨ New in v1.0.4
 
-🎯 **Enhanced Status Bar Experience**
-- **Multi-channel status bar**: Show individual status for each channel with configurable icons
-- **Three display modes**: `none`, `minimal` (single internet item), or `mini-multi-channel` (per-channel items)
-- **Smart overflow handling**: Automatic truncation with `+N` indicators for many channels
-- **Customizable formatting**: Control latency display, separators, and ordering
-
-📊 **Improved Dashboard & UI**
-- **Live monitoring views**: Real-time activity logs and status updates
-- **Enhanced timeline views**: Heatmaps, incidents, and swimlanes with React components
-- **Modern styling**: Tailwind CSS integration for consistent, responsive design
-- **Better error handling**: Clear validation messages and actionable error dialogs
-
-🛠️ **Developer Experience**
-- **Comprehensive testing**: Unit tests, E2E tests, and test coverage reporting
-- **Better documentation**: User journey guides, troubleshooting flowcharts, and setup templates
-- **Improved configuration**: Enhanced JSON schema validation with detailed error messages
-- **Template system**: Quick-start templates for different use cases
 
 ## Features
 
@@ -186,6 +168,9 @@ This extension contributes the following VS Code settings:
 
 ## Release Notes
 
+
+
+
 ### 1.0.4 (Latest)
 
 **🎯 Enhanced Status Bar Experience**
@@ -211,6 +196,12 @@ This extension contributes the following VS Code settings:
 - Enhanced setup templates for different use cases
 - Improved first-time user experience with better error messages
 - ASCII art diagrams and Mermaid flowcharts in documentation
+
+
+#### Known Issues
+
+ - Overview dashboard webview is style-less
+ - Timeline dashboard webview is style-less
 
 ### 1.0.3
 

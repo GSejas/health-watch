@@ -148,13 +148,40 @@ async function main() {
 		],
 	});
 
+	// Build React reports component
+	const reportsCtx = await esbuild.context({
+		entryPoints: [
+			'src/ui/react/reports/index.tsx'
+		],
+		bundle: true,
+		format: 'iife',
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: 'browser',
+		outfile: 'dist/reports-view.js',
+		jsx: 'automatic',
+		define: {
+			'process.env.NODE_ENV': production ? '"production"' : '"development"'
+		},
+		loader: {
+			'.tsx': 'tsx',
+			'.ts': 'ts'
+		},
+		logLevel: 'silent',
+		plugins: [
+			esbuildProblemMatcherPlugin,
+		],
+	});
+
 	if (watch) {
 		await Promise.all([
 			extensionCtx.watch(),
 			metricsCtx.watch(),
 			overviewCtx.watch(),
 			timelineCtx.watch(),
-			monitorCtx.watch()
+			monitorCtx.watch(),
+			reportsCtx.watch()
 		]);
 	} else {
 		await Promise.all([
@@ -162,14 +189,16 @@ async function main() {
 			metricsCtx.rebuild(),
 			overviewCtx.rebuild(),
 			timelineCtx.rebuild(),
-			monitorCtx.rebuild()
+			monitorCtx.rebuild(),
+			reportsCtx.rebuild()
 		]);
 		await Promise.all([
 			extensionCtx.dispose(),
 			metricsCtx.dispose(),
 			overviewCtx.dispose(),
 			timelineCtx.dispose(),
-			monitorCtx.dispose()
+			monitorCtx.dispose(),
+			reportsCtx.dispose()
 		]);
 	}
 }

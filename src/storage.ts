@@ -32,6 +32,7 @@ export class StorageManager {
     private static instance: StorageManager;
     private context: vscode.ExtensionContext;
     private diskStorage: DiskStorageManager;
+    private readyPromise: Promise<void>;
     private channelStates = new Map<string, ChannelState>();
     private currentWatch: WatchSession | null = null;
     private watchHistory: WatchSession[] = [];
@@ -40,7 +41,8 @@ export class StorageManager {
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.diskStorage = DiskStorageManager.initialize(context);
-        this.loadState();
+        // Kick off async load and expose a readiness promise to avoid races
+        this.readyPromise = this.loadState();
     }
 
     static initialize(context: vscode.ExtensionContext): StorageManager {
@@ -55,6 +57,14 @@ export class StorageManager {
             throw new Error('StorageManager not initialized. Call initialize() first.');
         }
         return StorageManager.instance;
+    }
+
+    /**
+     * Returns a promise that resolves when the initial state load has completed.
+     * Callers that require loaded state can await this without changing initialize signature.
+     */
+    whenReady(): Promise<void> {
+        return this.readyPromise;
     }
 
     private async loadState() {
@@ -132,7 +142,8 @@ export class StorageManager {
     updateChannelState(channelId: string, updates: Partial<ChannelState>): void {
         const state = this.getChannelState(channelId);
         Object.assign(state, updates);
-        this.saveState();
+        // Fire-and-forget with internal error handling
+        void this.saveState();
     }
 
     addSample(channelId: string, sample: Sample): void {
@@ -154,7 +165,7 @@ export class StorageManager {
             watchSamples.push(sample);
         }
 
-        this.saveState();
+    void this.saveState();
     }
 
     startWatch(duration: '1h' | '12h' | 'forever' | number): WatchSession {
@@ -170,8 +181,8 @@ export class StorageManager {
             isActive: true
         };
 
-        this.currentWatch = session;
-        this.saveState();
+    this.currentWatch = session;
+    void this.saveState();
         return session;
     }
 
@@ -190,12 +201,12 @@ export class StorageManager {
             this.watchHistory = this.watchHistory.slice(-maxHistory);
         }
 
-        // Save to disk storage
-        this.diskStorage.addToWatchHistory({ ...this.currentWatch });
+    // Save to disk storage (fire-and-forget with safety)
+    void this.diskStorage.addToWatchHistory({ ...this.currentWatch }).catch(() => {});
 
         const endedWatch = this.currentWatch;
-        this.currentWatch = null;
-        this.saveState();
+    this.currentWatch = null;
+    void this.saveState();
         
         return endedWatch;
     }
@@ -213,15 +224,15 @@ export class StorageManager {
     }
 
     addOutage(outage: Outage): void {
-        this.outages.push(outage);
+    this.outages.push(outage);
         
         const maxOutages = 500;
         if (this.outages.length > maxOutages) {
             this.outages = this.outages.slice(-maxOutages);
         }
         
-        // Save directly to disk storage
-        this.diskStorage.addOutage(outage);
+    // Save directly to disk storage (fire-and-forget with safety)
+    void this.diskStorage.addOutage(outage).catch(() => {});
     }
 
     updateOutage(channelId: string, endTime: number, recoveryTime?: number): void {
@@ -298,11 +309,11 @@ export class StorageManager {
         this.outages = this.outages.filter(o => o.startTime >= cutoff);
         this.watchHistory = this.watchHistory.filter(w => w.startTime >= cutoff);
         
-        // Also cleanup disk storage
-        const daysToKeep = Math.ceil(olderThanMs / (24 * 60 * 60 * 1000));
-        this.diskStorage.cleanupOldData(daysToKeep);
+    // Also cleanup disk storage (fire-and-forget with safety)
+    const daysToKeep = Math.ceil(olderThanMs / (24 * 60 * 60 * 1000));
+    void this.diskStorage.cleanupOldData(daysToKeep).catch(() => {});
         
-        this.saveState();
+    void this.saveState();
     }
 
     exportData(windowMs?: number): any {
