@@ -67,30 +67,65 @@ export class StorageManager {
         return this.readyPromise;
     }
 
-    private async loadState() {
-        try {
-            // Migrate from global state if needed (first time using disk storage)
-            await this.diskStorage.migrateFromGlobalState();
+    private async loadState(): Promise<void> {
+        const maxRetries = 3;
+        let lastError: Error | undefined;
 
-            // Load from disk storage
-            this.channelStates = await this.diskStorage.getChannelStates();
-            this.currentWatch = await this.diskStorage.getCurrentWatch();
-            this.watchHistory = await this.diskStorage.getWatchHistory();
-            this.outages = await this.diskStorage.getOutages();
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Migrate from global state if needed (first time using disk storage)
+                await this.diskStorage.migrateFromGlobalState();
 
-            // Convert samples back to Map for current watch
-            if (this.currentWatch && this.currentWatch.samples) {
-                if (!(this.currentWatch.samples instanceof Map)) {
-                    this.currentWatch.samples = new Map(Object.entries(this.currentWatch.samples as any));
+                // Load from disk storage
+                this.channelStates = await this.diskStorage.getChannelStates();
+                this.currentWatch = await this.diskStorage.getCurrentWatch();
+                this.watchHistory = await this.diskStorage.getWatchHistory();
+                this.outages = await this.diskStorage.getOutages();
+
+                // Convert samples back to Map for current watch
+                if (this.currentWatch && this.currentWatch.samples) {
+                    if (!(this.currentWatch.samples instanceof Map)) {
+                        this.currentWatch.samples = new Map(Object.entries(this.currentWatch.samples as any));
+                    }
+                }
+                
+                console.log(`Storage state loaded successfully: ${this.channelStates.size} channels, ${this.outages.length} outages, ${this.watchHistory.length} watch sessions`);
+                return; // Success
+                
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to load state from disk storage (attempt ${attempt}/${maxRetries}):`, error);
+                
+                if (attempt < maxRetries) {
+                    // Wait before retry with exponential backoff
+                    const delayMs = 200 * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
                 }
             }
-        } catch (error) {
-            console.error('Failed to load state from disk storage:', error);
         }
+        
+        // All retries failed - initialize with empty state and log error
+        console.error(`CRITICAL: Failed to load storage state after ${maxRetries} attempts, initializing with empty state:`, lastError);
+        
+        // Initialize with safe defaults
+        this.channelStates = new Map();
+        this.currentWatch = null;
+        this.watchHistory = [];
+        this.outages = [];
+        
+        // Show user notification for critical loading failures
+        vscode.window.showWarningMessage(
+            'Health Watch: Failed to load monitoring history. Starting with fresh state.',
+            'Show Logs'
+        ).then(selection => {
+            if (selection === 'Show Logs') {
+                vscode.commands.executeCommand('workbench.action.openLogs');
+            }
+        });
     }
 
     /**
-     * Persists the health watch state to disk storage instead of global state.
+     * Persists the health watch state to disk storage with comprehensive error handling.
      * This method saves the following state data:
      * - Channel states
      * - Current active watch data (if exists), with samples converted from Map to object
@@ -99,29 +134,58 @@ export class StorageManager {
      * 
      * @private
      * @async
-     * @throws {Error} Errors are caught and logged but not propagated
      * @returns {Promise<void>} A promise that resolves when the state has been saved
      */
-    private async saveState() {
-        try {
-            // Save to disk storage
-            await this.diskStorage.saveChannelStates(this.channelStates);
+    private async saveState(): Promise<void> {
+        const maxRetries = 2;
+        let lastError: Error | undefined;
 
-            // Convert Map to object for current watch before saving
-            if (this.currentWatch) {
-                const currentWatchData = {
-                    ...this.currentWatch,
-                    samples: Object.fromEntries(this.currentWatch.samples.entries())
-                } as any; // Type assertion for compatibility with storage
-                await this.diskStorage.setCurrentWatch(currentWatchData);
-            } else {
-                await this.diskStorage.setCurrentWatch(null);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Save channel states to disk storage
+                await this.diskStorage.saveChannelStates(this.channelStates);
+
+                // Convert Map to object for current watch before saving
+                if (this.currentWatch) {
+                    const currentWatchData = {
+                        ...this.currentWatch,
+                        samples: Object.fromEntries(this.currentWatch.samples.entries())
+                    } as any; // Type assertion for compatibility with storage
+                    await this.diskStorage.setCurrentWatch(currentWatchData);
+                } else {
+                    await this.diskStorage.setCurrentWatch(null);
+                }
+
+                // Success - exit retry loop
+                return;
+                
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to save storage state (attempt ${attempt}/${maxRetries}):`, error);
+                
+                if (attempt < maxRetries) {
+                    // Wait before retry
+                    await new Promise(resolve => setTimeout(resolve, 250 * attempt));
+                }
             }
-
-            // Note: Watch history and outages are saved individually when added
-            // to avoid having to save the entire array each time
-        } catch (error) {
-            console.error('Failed to save storage state:', error);
+        }
+        
+        // All retries failed - log critical error and show user notification
+        console.error(`CRITICAL: Failed to save storage state after ${maxRetries} attempts:`, lastError);
+        
+        // Show user notification for critical storage failures (rate limited)
+        const now = Date.now();
+        const lastNotification = (this as any)._lastStorageErrorNotification || 0;
+        if (now - lastNotification > 300000) { // Show at most once every 5 minutes
+            (this as any)._lastStorageErrorNotification = now;
+            vscode.window.showErrorMessage(
+                'Health Watch: Failed to save monitoring data. Some data may be lost.',
+                'Show Logs'
+            ).then(selection => {
+                if (selection === 'Show Logs') {
+                    vscode.commands.executeCommand('workbench.action.openLogs');
+                }
+            });
         }
     }    getChannelState(channelId: string): ChannelState {
         let state = this.channelStates.get(channelId);

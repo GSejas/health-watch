@@ -399,6 +399,24 @@ class MySQLStorage {
    - Implement health checks
    - Create monitoring dashboard
 
+## Quick commands
+
+Run small checks and open the risk register quickly from a developer machine.
+
+```powershell
+# List High/Critical risks
+Select-String -Path docs/developers/architecture/RISK_ASSESSMENT.csv -Pattern "High|Critical" -SimpleMatch
+
+# Open the CSV in VS Code
+code docs/developers/architecture/RISK_ASSESSMENT.csv
+
+# Show the last 20 lines of the CSV (PowerShell)
+Get-Content docs/developers/architecture/RISK_ASSESSMENT.csv -Tail 20
+```
+
+Notes:
+- Edit the CSV directly for programmatic workflows. Keep this MD for human-friendly guidance and a remediation roadmap.
+
 **Success Criteria**:
 - Secure credential storage
 - Comprehensive system monitoring

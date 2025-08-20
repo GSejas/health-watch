@@ -15,7 +15,7 @@ import { ReportGenerator } from './report';
 
 let healthWatchAPI: HealthWatchAPIImpl;
 
-export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
+export async function activate(context: vscode.ExtensionContext): Promise<HealthWatchAPIImpl> {
     console.log('Health Watch extension is activating...');
 
     try {
@@ -24,12 +24,19 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
         const storageManager = StorageManager.initialize(context);
         const guardManager = GuardManager.getInstance();
         
-        // Wait for storage to be ready before creating components that depend on it
-        // Note: We return the API immediately but start async initialization
-        const initPromise = initializeAsync(context, configManager, storageManager, guardManager);
+        // Wait for storage to be ready before proceeding
+        console.log('Waiting for storage to be ready...');
+        await storageManager.whenReady();
+        console.log('Storage ready, initializing components...');
         
-        // Return API immediately - the async initialization will complete in background
-        return createHealthWatchAPI(initPromise);
+        // Now safely initialize all components
+        const components = await initializeAsync(context, configManager, storageManager, guardManager);
+        
+        // Return the fully initialized API
+        healthWatchAPI = components.healthWatchAPI;
+        console.log('Health Watch extension activated successfully');
+        
+        return healthWatchAPI;
         
     } catch (error) {
         console.error('Failed to activate Health Watch extension:', error);
@@ -55,9 +62,8 @@ async function initializeAsync(
     reportGenerator: ReportGenerator;
     healthWatchAPI: HealthWatchAPIImpl;
 }> {
-    // Wait for storage to be ready
-    await storageManager.whenReady();
-    console.log('Storage is ready, initializing components...');
+    // Storage is already ready at this point (awaited in activate function)
+    console.log('Initializing components with ready storage...');
     
     // Now safely initialize scheduler and runners
     const scheduler = new Scheduler();
@@ -134,41 +140,6 @@ async function initializeAsync(
     };
 }
 
-function createHealthWatchAPI(initPromise: Promise<any>): HealthWatchAPIImpl {
-    // Create a placeholder API that will be populated once initialization completes
-    const api = new HealthWatchAPIImpl(null as any); // Temporary null scheduler
-    // Expose a readiness promise that resolves when initialization completes
-    let readyResolve: () => void;
-    let readyReject: (err: any) => void;
-    api.ready = new Promise<void>((res, rej) => { readyResolve = res; readyReject = rej; });
-    
-    // Initialize properly in background
-    initPromise.then(async (components) => {
-        console.log('Async initialization completed');
-        const { healthWatchAPI: realAPI } = components;
-        
-        // Replace the placeholder API properties with the real ones
-        Object.setPrototypeOf(api, Object.getPrototypeOf(realAPI));
-        Object.assign(api, realAPI);
-        
-        // Now set up event forwarding with the real scheduler
-        if ((api as any).setupEventForwarding) {
-            (api as any).setupEventForwarding();
-        }
-        
-        // Store global reference
-        healthWatchAPI = api;
-    // Mark API as ready
-    readyResolve();
-    }).catch(error => {
-        console.error('Failed to complete async initialization:', error);
-        vscode.window.showErrorMessage(`Health Watch initialization failed: ${error}`);
-    if (readyReject) readyReject(error);
-    });
-    
-    return api;
-}
-
 function registerCommands(
     context: vscode.ExtensionContext,
     scheduler: Scheduler,
@@ -181,9 +152,8 @@ function registerCommands(
     incidentsProvider?: IncidentsTreeProvider
 ) {
     const commands: Array<[string, (...args: any[]) => any]> = [
-    ['healthWatch.startWatch', async (duration?: string) => {
+        ['healthWatch.startWatch', async (duration?: string) => {
             try {
-        await api.ready;
                 const watchDuration = duration || await showWatchDurationPicker();
                 if (watchDuration) {
                     api.startWatch({ duration: watchDuration as any });
@@ -194,9 +164,8 @@ function registerCommands(
             }
         }],
         
-    ['healthWatch.stopWatch', async () => {
+        ['healthWatch.stopWatch', async () => {
             try {
-        await api.ready;
                 api.stopWatch();
                 vscode.window.showInformationMessage('Health Watch stopped');
             } catch (error) {
@@ -215,7 +184,6 @@ function registerCommands(
         
         ['healthWatch.openLastReport', async () => {
             try {
-                await api.ready;
                 await api.openLastReport();
             } catch (error) {
                 vscode.window.showErrorMessage(`No report available: ${error}`);
@@ -471,28 +439,22 @@ function showDetailsWebview(context: vscode.ExtensionContext, api: HealthWatchAP
         }
     );
     
-    // Ensure API is ready before querying runtime data
-    (async () => {
-        await api.ready;
-        const channels = api.listChannels();
-        const currentWatch = api.getCurrentWatch();
-        const states = api.getChannelStates();
-        panel.webview.html = generateDetailsHTML(channels, currentWatch, states);
+    // API is already ready at this point since activation completed
+    const channels = api.listChannels();
+    const currentWatch = api.getCurrentWatch();
+    const states = api.getChannelStates();
+    panel.webview.html = generateDetailsHTML(channels, currentWatch, states);
 
-        // Refresh webview when data changes
-        const disposable = api.onStateChange(() => {
-            const updatedChannels = api.listChannels();
-            const updatedWatch = api.getCurrentWatch();
-            const updatedStates = api.getChannelStates();
-            panel.webview.html = generateDetailsHTML(updatedChannels, updatedWatch, updatedStates);
-        });
+    // Refresh webview when data changes
+    const disposable = api.onStateChange(() => {
+        const updatedChannels = api.listChannels();
+        const updatedWatch = api.getCurrentWatch();
+        const updatedStates = api.getChannelStates();
+        panel.webview.html = generateDetailsHTML(updatedChannels, updatedWatch, updatedStates);
+    });
 
-        panel.onDidDispose(() => {
-            disposable.dispose();
-        });
-    })().catch(err => {
-        console.error('Failed to populate details webview:', err);
-        panel.webview.html = `<html><body><h3>Details unavailable: initializing...</h3></body></html>`;
+    panel.onDidDispose(() => {
+        disposable.dispose();
     });
 }
 

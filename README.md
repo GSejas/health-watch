@@ -168,41 +168,6 @@ This extension contributes the following VS Code settings:
 
 ## Release Notes
 
-
-
-
-### 1.0.4 (Latest)
-
-**🎯 Enhanced Status Bar Experience**
-- Added multi-channel status bar with three display modes: `none`, `minimal`, and `mini-multi-channel`
-- Configurable per-channel status items with custom icons, latency display, and ordering
-- Smart overflow handling with `+N` indicators for many channels
-- Individual channel opt-in/opt-out via `showInStatusBar` configuration
-
-**📊 Improved Dashboard & UI**
-- New live monitoring views with real-time activity logs
-- Enhanced timeline views using React components and Tremor UI
-- Modern styling with Tailwind CSS integration
-- Responsive design improvements across all dashboard views
-
-**🛠️ Developer Experience & Testing**
-- Comprehensive test suite with unit tests and E2E testing
-- Enhanced JSON schema validation with detailed error messages
-- Improved configuration templates and setup scripts
-- Better error handling with actionable error dialogs
-
-**📖 Documentation & User Experience**
-- New user journey documentation with flowcharts and troubleshooting guides
-- Enhanced setup templates for different use cases
-- Improved first-time user experience with better error messages
-- ASCII art diagrams and Mermaid flowcharts in documentation
-
-
-#### Known Issues
-
- - Overview dashboard webview is style-less
- - Timeline dashboard webview is style-less
-
 ### 1.0.5
 
 **🚀 Major Feature Enhancements**

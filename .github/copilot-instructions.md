@@ -7,6 +7,8 @@ Purpose: Help AI agents be productive in this TypeScript VS Code extension by ca
 For analyzing and searching code, we use the static analysis code, to understand interfaces and classes in module.
 
 
+
+
 ## Big picture
 - Local‑first VS Code extension (no telemetry). Entry: `src/extension.ts`; output bundle: `dist/extension.js`.
 - Core data flow: Scheduler → ChannelRunner → Probes → Storage → UI/Reports.
@@ -35,11 +37,13 @@ For analyzing and searching code, we use the static analysis code, to understand
 - Build: `npm run compile` (tsc typecheck + eslint + esbuild). Watch tasks exist: `watch:tsc`, `watch:esbuild`.
 - Run extension: F5 (Extension Development Host). Main command IDs are under `contributes.commands` in `package.json`.
 - Tests:
+  Use Vitest for unit logic and @vscode/test-electron for integration tests that require real VS Code APIs.
   - Compile tests: `npm run compile-tests` (to `out/test/**`).
   - Unit tests: `npm run test:unit` (mocha on compiled JS). Some tests require mocks for `vscode`.
   - E2E: `npm run test:e2e` (runs with `@vscode/test-electron`).
   - Example (PowerShell) run a single unit test with mock resolution:
     - `$env:NODE_PATH = "${PWD}\test\_mocks"; npx mocha out/test/unit/outageDuration.test.js`
+  
 
 ## Patterns to follow (with examples)
 - Recording outages (runner → storage): when threshold is crossed, include first‑failure metadata.

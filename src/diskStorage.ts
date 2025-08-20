@@ -41,13 +41,36 @@ export class DiskStorageManager {
     }
 
     private ensureStorageDirectory(): void {
-        try {
-            if (!fs.existsSync(this.storageDir)) {
-                fs.mkdirSync(this.storageDir, { recursive: true });
+        const maxRetries = 3;
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                if (!fs.existsSync(this.storageDir)) {
+                    fs.mkdirSync(this.storageDir, { recursive: true });
+                }
+                
+                // Verify directory is writable
+                const testFile = path.join(this.storageDir, '.write-test');
+                fs.writeFileSync(testFile, 'test', 'utf8');
+                fs.unlinkSync(testFile);
+                
+                return; // Success
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to create/verify storage directory (attempt ${attempt}/${maxRetries}):`, error);
+                
+                if (attempt < maxRetries) {
+                    // Wait before retry
+                    const delayMs = 100 * attempt;
+                    setTimeout(() => {}, delayMs);
+                }
             }
-        } catch (error) {
-            console.error('Failed to create storage directory:', error);
         }
+        
+        // All retries failed - this is a critical error but don't throw to avoid breaking extension activation
+        console.error(`CRITICAL: Storage directory creation failed after ${maxRetries} attempts:`, lastError);
+        vscode.window.showErrorMessage(`Health Watch: Storage directory creation failed. Extension may not function properly.`);
     }
 
     private getFilePath(filename: string): string {
@@ -55,25 +78,87 @@ export class DiskStorageManager {
     }
 
     private async readJsonFile<T>(filename: string, defaultValue: T): Promise<T> {
-        try {
-            const filePath = this.getFilePath(filename);
-            if (fs.existsSync(filePath)) {
-                const data = fs.readFileSync(filePath, 'utf8');
-                return JSON.parse(data);
+        const maxRetries = 3;
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const filePath = this.getFilePath(filename);
+                if (fs.existsSync(filePath)) {
+                    const data = fs.readFileSync(filePath, 'utf8');
+                    
+                    // Validate JSON before parsing
+                    if (data.trim().length === 0) {
+                        console.warn(`Empty file detected: ${filename}, using default value`);
+                        return defaultValue;
+                    }
+                    
+                    return JSON.parse(data);
+                }
+                // File doesn't exist, return default
+                return defaultValue;
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to read ${filename} (attempt ${attempt}/${maxRetries}):`, error);
+                
+                if (attempt < maxRetries) {
+                    // Exponential backoff: 100ms, 200ms, 400ms
+                    const delayMs = 100 * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
             }
-        } catch (error) {
-            console.error(`Failed to read ${filename}:`, error);
         }
+        
+        // All retries failed, log error and return default
+        console.error(`Failed to read ${filename} after ${maxRetries} attempts, using default value:`, lastError);
         return defaultValue;
     }
 
     private async writeJsonFile<T>(filename: string, data: T): Promise<void> {
-        try {
-            const filePath = this.getFilePath(filename);
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-        } catch (error) {
-            console.error(`Failed to write ${filename}:`, error);
+        const maxRetries = 3;
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const filePath = this.getFilePath(filename);
+                const tempFilePath = `${filePath}.tmp`;
+                
+                // Write to temporary file first for atomic operation
+                const jsonString = JSON.stringify(data, null, 2);
+                fs.writeFileSync(tempFilePath, jsonString, 'utf8');
+                
+                // Verify the temporary file was written correctly
+                const verifyData = fs.readFileSync(tempFilePath, 'utf8');
+                JSON.parse(verifyData); // Ensure valid JSON
+                
+                // Atomic move to final location
+                fs.renameSync(tempFilePath, filePath);
+                return; // Success
+                
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to write ${filename} (attempt ${attempt}/${maxRetries}):`, error);
+                
+                // Clean up temporary file if it exists
+                try {
+                    const tempFilePath = `${this.getFilePath(filename)}.tmp`;
+                    if (fs.existsSync(tempFilePath)) {
+                        fs.unlinkSync(tempFilePath);
+                    }
+                } catch (cleanupError) {
+                    console.warn(`Failed to cleanup temp file for ${filename}:`, cleanupError);
+                }
+                
+                if (attempt < maxRetries) {
+                    // Exponential backoff: 100ms, 200ms, 400ms
+                    const delayMs = 100 * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
         }
+        
+        // All retries failed, throw error to notify caller
+        throw new Error(`Failed to write ${filename} after ${maxRetries} attempts: ${lastError?.message}`);
     }
 
     // Channel States Management
