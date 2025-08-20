@@ -188,16 +188,23 @@ export class DashboardManager {
      */
     private startAutoRefresh() {
         this.stopAutoRefresh(); // Ensure no duplicate timers
-        
+
         if (!this.currentState.liveMonitorEnabled) return;
 
+        let running = false;
         this.refreshTimer = setInterval(async () => {
+            if (running) return; // Skip if previous run still in progress
             if (this.panel && this.panel.visible && this.currentState.liveMonitorEnabled) {
                 // Only update if sufficient time has passed to avoid overwhelming the UI
                 const timeSinceLastUpdate = Date.now() - this.currentState.lastUpdate;
                 if (timeSinceLastUpdate >= 5000) { // Minimum 5 second interval
-                    this.currentState.lastUpdate = Date.now();
-                    await this.updateDashboard({ preserveState: true });
+                    running = true;
+                    try {
+                        this.currentState.lastUpdate = Date.now();
+                        await this.updateDashboard({ preserveState: true });
+                    } finally {
+                        running = false;
+                    }
                 }
             }
         }, 10000); // Check every 10 seconds, but respect minimum update interval

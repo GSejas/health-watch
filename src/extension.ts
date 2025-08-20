@@ -137,6 +137,10 @@ async function initializeAsync(
 function createHealthWatchAPI(initPromise: Promise<any>): HealthWatchAPIImpl {
     // Create a placeholder API that will be populated once initialization completes
     const api = new HealthWatchAPIImpl(null as any); // Temporary null scheduler
+    // Expose a readiness promise that resolves when initialization completes
+    let readyResolve: () => void;
+    let readyReject: (err: any) => void;
+    api.ready = new Promise<void>((res, rej) => { readyResolve = res; readyReject = rej; });
     
     // Initialize properly in background
     initPromise.then(async (components) => {
@@ -147,11 +151,19 @@ function createHealthWatchAPI(initPromise: Promise<any>): HealthWatchAPIImpl {
         Object.setPrototypeOf(api, Object.getPrototypeOf(realAPI));
         Object.assign(api, realAPI);
         
+        // Now set up event forwarding with the real scheduler
+        if ((api as any).setupEventForwarding) {
+            (api as any).setupEventForwarding();
+        }
+        
         // Store global reference
         healthWatchAPI = api;
+    // Mark API as ready
+    readyResolve();
     }).catch(error => {
         console.error('Failed to complete async initialization:', error);
         vscode.window.showErrorMessage(`Health Watch initialization failed: ${error}`);
+    if (readyReject) readyReject(error);
     });
     
     return api;
@@ -169,8 +181,9 @@ function registerCommands(
     incidentsProvider?: IncidentsTreeProvider
 ) {
     const commands: Array<[string, (...args: any[]) => any]> = [
-        ['healthWatch.startWatch', async (duration?: string) => {
+    ['healthWatch.startWatch', async (duration?: string) => {
             try {
+        await api.ready;
                 const watchDuration = duration || await showWatchDurationPicker();
                 if (watchDuration) {
                     api.startWatch({ duration: watchDuration as any });
@@ -181,8 +194,9 @@ function registerCommands(
             }
         }],
         
-        ['healthWatch.stopWatch', () => {
+    ['healthWatch.stopWatch', async () => {
             try {
+        await api.ready;
                 api.stopWatch();
                 vscode.window.showInformationMessage('Health Watch stopped');
             } catch (error) {
@@ -201,6 +215,7 @@ function registerCommands(
         
         ['healthWatch.openLastReport', async () => {
             try {
+                await api.ready;
                 await api.openLastReport();
             } catch (error) {
                 vscode.window.showErrorMessage(`No report available: ${error}`);
@@ -456,22 +471,28 @@ function showDetailsWebview(context: vscode.ExtensionContext, api: HealthWatchAP
         }
     );
     
-    const channels = api.listChannels();
-    const currentWatch = api.getCurrentWatch();
-    const states = api.getChannelStates();
-    
-    panel.webview.html = generateDetailsHTML(channels, currentWatch, states);
-    
-    // Refresh webview when data changes
-    const disposable = api.onStateChange(() => {
-        const updatedChannels = api.listChannels();
-        const updatedWatch = api.getCurrentWatch();
-        const updatedStates = api.getChannelStates();
-        panel.webview.html = generateDetailsHTML(updatedChannels, updatedWatch, updatedStates);
-    });
-    
-    panel.onDidDispose(() => {
-        disposable.dispose();
+    // Ensure API is ready before querying runtime data
+    (async () => {
+        await api.ready;
+        const channels = api.listChannels();
+        const currentWatch = api.getCurrentWatch();
+        const states = api.getChannelStates();
+        panel.webview.html = generateDetailsHTML(channels, currentWatch, states);
+
+        // Refresh webview when data changes
+        const disposable = api.onStateChange(() => {
+            const updatedChannels = api.listChannels();
+            const updatedWatch = api.getCurrentWatch();
+            const updatedStates = api.getChannelStates();
+            panel.webview.html = generateDetailsHTML(updatedChannels, updatedWatch, updatedStates);
+        });
+
+        panel.onDidDispose(() => {
+            disposable.dispose();
+        });
+    })().catch(err => {
+        console.error('Failed to populate details webview:', err);
+        panel.webview.html = `<html><body><h3>Details unavailable: initializing...</h3></body></html>`;
     });
 }
 

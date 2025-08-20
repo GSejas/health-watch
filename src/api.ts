@@ -76,6 +76,9 @@ export interface HealthWatchAPI {
 }
 
 export class HealthWatchAPIImpl implements HealthWatchAPI {
+    // Promise that resolves when the extension initialization has completed and the
+    // real runtime components (scheduler, storage, etc.) are available.
+    public ready: Promise<void> = Promise.resolve();
     private scheduler: Scheduler;
     private storageManager = StorageManager.getInstance();
     private guardManager = GuardManager.getInstance();
@@ -85,12 +88,18 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     private dynamicChannels = new Map<string, ChannelDefinition>();
     private lastReportPath: string | null = null;
 
-    constructor(scheduler: Scheduler) {
-        this.scheduler = scheduler;
-        this.setupEventForwarding();
+    constructor(scheduler: Scheduler | null) {
+        this.scheduler = scheduler as any;
+        if (scheduler) {
+            this.setupEventForwarding();
+        }
     }
 
     private setupEventForwarding() {
+        if (!this.scheduler) {
+            return; // Skip if scheduler is null during initialization
+        }
+        
         this.scheduler.on('sample', (event) => {
             this.eventEmitter.emit('sample', event);
         });
@@ -113,12 +122,16 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
         // Store the dynamic channel
         this.dynamicChannels.set(def.id, def);
         
-        // Refresh scheduler to pick up new channel
-        this.scheduler.refreshChannels();
+        // Refresh scheduler to pick up new channel (only if scheduler is ready)
+        if (this.scheduler) {
+            this.scheduler.refreshChannels();
+        }
 
         return new vscode.Disposable(() => {
             this.dynamicChannels.delete(def.id);
-            this.scheduler.refreshChannels();
+            if (this.scheduler) {
+                this.scheduler.refreshChannels();
+            }
         });
     }
 
@@ -131,6 +144,10 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     }
 
     startWatch(opts?: { duration: '1h' | '12h' | 'forever' | number }): void {
+        if (!this.scheduler) {
+            throw new Error('Health Watch is still initializing. Please try again in a moment.');
+        }
+        
         const duration = opts?.duration || '1h';
         const session = this.storageManager.startWatch(duration);
         
@@ -160,6 +177,9 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     }
 
     async runChannelNow(id: string): Promise<Sample> {
+        if (!this.scheduler) {
+            throw new Error('Health Watch is still initializing. Please try again in a moment.');
+        }
         return await this.scheduler.runChannelNow(id);
     }
 
@@ -191,6 +211,11 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     }
 
     listChannels(): ChannelInfo[] {
+        if (!this.scheduler) {
+            // Return empty array if scheduler is not ready yet
+            return [];
+        }
+        
         const scheduleInfo = this.scheduler.getScheduleInfo();
         const channelStates = this.scheduler.getChannelRunner().getChannelStates();
         const allChannels = this.getAllChannels();
