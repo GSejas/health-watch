@@ -24,76 +24,137 @@ export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
         const storageManager = StorageManager.initialize(context);
         const guardManager = GuardManager.getInstance();
         
-        // Initialize scheduler and runners
-        const scheduler = new Scheduler();
+        // Wait for storage to be ready before creating components that depend on it
+        // Note: We return the API immediately but start async initialization
+        const initPromise = initializeAsync(context, configManager, storageManager, guardManager);
         
-        // Initialize UI components
-        const statusBarManager = new StatusBarManager(scheduler);
-        const treeProvider = new ChannelTreeProvider(scheduler);
-        const notificationManager = new NotificationManager(scheduler);
-        const dashboardManager = new DashboardManager(scheduler);
-
-        const statusProvider = new StatusTreeDataProvider(scheduler);
-        const incidentsProvider = new IncidentsTreeProvider();
-
-        // Initialize utilities
-        const dataExporter = new DataExporter();
-        const reportGenerator = new ReportGenerator();
-        
-        // Initialize public API
-        healthWatchAPI = new HealthWatchAPIImpl(scheduler);
-        
-        // Register tree view
-        const treeView = vscode.window.createTreeView('healthWatchChannels', {
-            treeDataProvider: treeProvider,
-            showCollapseAll: false
-        });
-        
-        // Register status tree view (view id must match package.json contributes.views)
-        const statusTreeView = vscode.window.createTreeView('healthWatchStatus', {
-            treeDataProvider: statusProvider,
-            showCollapseAll: false
-        });
-        
-        // Register incidents tree view
-        const incidentsTreeView = vscode.window.createTreeView('healthWatchIncidents', {
-            treeDataProvider: incidentsProvider,
-            showCollapseAll: false
-        });
-        
-        // Register commands
-        registerCommands(context, scheduler, healthWatchAPI, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, incidentsProvider);
-        
-        // Set context for when clauses
-        vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
-        
-        // Load configuration and start monitoring
-        setupExtension(configManager, guardManager, scheduler);
-        
-        // Register disposables
-        context.subscriptions.push(
-            statusBarManager,
-            treeProvider,
-            statusProvider,
-            incidentsProvider,
-            treeView,
-            statusTreeView,
-            incidentsTreeView,
-            notificationManager,
-            dashboardManager,
-            healthWatchAPI,
-            configManager
-        );
-        
-        console.log('Health Watch extension activated successfully');
-        
-        return healthWatchAPI;
+        // Return API immediately - the async initialization will complete in background
+        return createHealthWatchAPI(initPromise);
         
     } catch (error) {
         console.error('Failed to activate Health Watch extension:', error);
         vscode.window.showErrorMessage(`Health Watch activation failed: ${error}`);
         throw error;
     }
+}
+
+async function initializeAsync(
+    context: vscode.ExtensionContext, 
+    configManager: ConfigManager, 
+    storageManager: StorageManager, 
+    guardManager: GuardManager
+): Promise<{
+    scheduler: Scheduler;
+    statusBarManager: StatusBarManager;
+    treeProvider: ChannelTreeProvider;
+    notificationManager: NotificationManager;
+    dashboardManager: DashboardManager;
+    statusProvider: StatusTreeDataProvider;
+    incidentsProvider: IncidentsTreeProvider;
+    dataExporter: DataExporter;
+    reportGenerator: ReportGenerator;
+    healthWatchAPI: HealthWatchAPIImpl;
+}> {
+    // Wait for storage to be ready
+    await storageManager.whenReady();
+    console.log('Storage is ready, initializing components...');
+    
+    // Now safely initialize scheduler and runners
+    const scheduler = new Scheduler();
+    
+    // Initialize UI components
+    const statusBarManager = new StatusBarManager(scheduler);
+    const treeProvider = new ChannelTreeProvider(scheduler);
+    const notificationManager = new NotificationManager(scheduler);
+    const dashboardManager = new DashboardManager(scheduler);
+
+    const statusProvider = new StatusTreeDataProvider(scheduler);
+    const incidentsProvider = new IncidentsTreeProvider();
+
+    // Initialize utilities
+    const dataExporter = new DataExporter();
+    const reportGenerator = new ReportGenerator();
+    
+    // Initialize public API
+    const healthWatchAPIInstance = new HealthWatchAPIImpl(scheduler);
+    
+    // Register tree views
+    const treeView = vscode.window.createTreeView('healthWatchChannels', {
+        treeDataProvider: treeProvider,
+        showCollapseAll: false
+    });
+    
+    const statusTreeView = vscode.window.createTreeView('healthWatchStatus', {
+        treeDataProvider: statusProvider,
+        showCollapseAll: false
+    });
+    
+    const incidentsTreeView = vscode.window.createTreeView('healthWatchIncidents', {
+        treeDataProvider: incidentsProvider,
+        showCollapseAll: false
+    });
+    
+    // Register commands
+    registerCommands(context, scheduler, healthWatchAPIInstance, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, incidentsProvider);
+    
+    // Set context for when clauses
+    vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
+    
+    // Load configuration and start monitoring
+    await setupExtension(configManager, guardManager, scheduler);
+    
+    // Register disposables
+    context.subscriptions.push(
+        statusBarManager,
+        treeProvider,
+        statusProvider,
+        incidentsProvider,
+        treeView,
+        statusTreeView,
+        incidentsTreeView,
+        notificationManager,
+        dashboardManager,
+        healthWatchAPIInstance,
+        configManager
+    );
+    
+    console.log('Health Watch extension activated successfully');
+    
+    return {
+        scheduler,
+        statusBarManager,
+        treeProvider,
+        notificationManager,
+        dashboardManager,
+        statusProvider,
+        incidentsProvider,
+        dataExporter,
+        reportGenerator,
+        healthWatchAPI: healthWatchAPIInstance
+    };
+}
+
+function createHealthWatchAPI(initPromise: Promise<any>): HealthWatchAPIImpl {
+    // Create a placeholder API that will be populated once initialization completes
+    const api = new HealthWatchAPIImpl(null as any); // Temporary null scheduler
+    
+    // Initialize properly in background
+    initPromise.then(async (components) => {
+        console.log('Async initialization completed');
+        const { healthWatchAPI: realAPI } = components;
+        
+        // Replace the placeholder API properties with the real ones
+        Object.setPrototypeOf(api, Object.getPrototypeOf(realAPI));
+        Object.assign(api, realAPI);
+        
+        // Store global reference
+        healthWatchAPI = api;
+    }).catch(error => {
+        console.error('Failed to complete async initialization:', error);
+        vscode.window.showErrorMessage(`Health Watch initialization failed: ${error}`);
+    });
+    
+    return api;
 }
 
 function registerCommands(

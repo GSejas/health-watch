@@ -363,11 +363,14 @@ export class DashboardManager {
                 });
                 
             case 'timeline-heatmap':
-                const heatmapData = generateHourlyHeatmapData(channels, 7, this.storageManager);
+                const heatmapTimeRange = options.timeRange || this.currentState.timeRange || '7D';
+                const heatmapDays = this.getTimeRangeDays(heatmapTimeRange);
+                const heatmapData = generateHourlyHeatmapData(channels, heatmapDays, this.storageManager);
                 return generateTimelineHeatmapView({
                     channels,
                     states,
                     heatmapData,
+                    timeRange: heatmapTimeRange,
                     navigation,
                     baseCSS,
                     baseScripts,

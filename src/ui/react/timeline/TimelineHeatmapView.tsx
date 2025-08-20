@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { HeatmapData } from '../../dashboardData';
 import { baseStyles } from '../shared/baseStyles';
+import { FilterPanel, FilterOptions } from '../shared/FilterPanel';
 
 export interface TimelineHeatmapViewProps {
     channels: any[];
     states: Map<string, any> | Record<string, any>;
     heatmapData: HeatmapData;
+    timeRange: string;
 }
 
 // Helper functions
@@ -48,8 +50,31 @@ const HourLabels: React.FC = () => (
 export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
     channels,
     states,
-    heatmapData
+    heatmapData,
+    timeRange
 }) => {
+    // Filter state
+    const [filters, setFilters] = useState<FilterOptions>({
+        timeRange: (timeRange.replace('D', 'd').toLowerCase() as any) || '7d',
+        selectedChannels: [],
+        showOnlyProblems: false
+    });
+
+    const handleFiltersChange = (newFilters: FilterOptions) => {
+        setFilters(newFilters);
+        
+        // Convert our time format back to backend format
+        const backendTimeRange = newFilters.timeRange.replace('d', 'D').toUpperCase();
+        
+        // Communicate back to parent through webview messaging
+        if (typeof window !== 'undefined' && (window as any).vscode) {
+            (window as any).vscode.postMessage({
+                command: 'changeTimeRange',
+                timeRange: backendTimeRange
+            });
+        }
+    };
+
     // Convert Map to object if needed
     const statesObj = React.useMemo(() => {
         if (states instanceof Map) {
@@ -61,6 +86,26 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
         }
         return states as Record<string, any>;
     }, [states]);
+
+    // Filter channels based on selection and problems filter
+    const filteredChannels = useMemo(() => {
+        let result = channels;
+        
+        // Apply channel selection filter
+        if (filters.selectedChannels.length > 0) {
+            result = result.filter(channel => filters.selectedChannels.includes(channel.id));
+        }
+        
+        // Apply problems filter
+        if (filters.showOnlyProblems) {
+            result = result.filter(channel => {
+                const channelState = statesObj[channel.id];
+                return channelState && channelState.state === 'offline';
+            });
+        }
+        
+        return result;
+    }, [channels, filters, statesObj]);
 
     if (channels.length === 0) {
         return (
@@ -74,6 +119,37 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
         );
     }
 
+    if (filteredChannels.length === 0) {
+        return (
+            <div className="heatmap-container">
+                <div className="heatmap-card">
+                    <div className="heatmap-header">
+                        <h2 className="heatmap-title">Hourly Availability Heatmap</h2>
+                        <p className="heatmap-subtitle">Last 7 days, hourly resolution</p>
+                    </div>
+
+                    <FilterPanel
+                        channels={channels}
+                        filters={filters}
+                        onFiltersChange={handleFiltersChange}
+                        showProblemFilter={true}
+                    />
+
+                    <div className="empty-heatmap">
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+                        <h3 style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>No Matching Channels</h3>
+                        <p style={{ opacity: '0.7' }}>
+                            {filters.showOnlyProblems ? 
+                                "No channels are currently offline" : 
+                                "Try adjusting your filter settings"
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="heatmap-container">
             <div className="heatmap-card">
@@ -81,11 +157,18 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
                     <h2 className="heatmap-title">Hourly Availability Heatmap</h2>
                     <p className="heatmap-subtitle">Last 7 days, hourly resolution</p>
                 </div>
+
+                <FilterPanel
+                    channels={channels}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    showProblemFilter={true}
+                />
                 
                 <HeatmapLegend />
                 
                 <div className="channels-heatmap-grid">
-                    {channels.map(channel => {
+                    {filteredChannels.map(channel => {
                         const channelHeatmap = heatmapData[channel.id] || [];
                         return (
                             <div key={channel.id} className="channel-heatmap-card">

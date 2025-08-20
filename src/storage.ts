@@ -253,7 +253,7 @@ export class StorageManager {
             if (recoveryTime !== undefined) {
                 outage.recoveryTime = recoveryTime;
             }
-            this.saveState();
+            void this.saveState();
         }
     }
 
@@ -296,7 +296,7 @@ export class StorageManager {
             watch.samples?.delete?.(channelId);
         });
         
-        this.saveState();
+        void this.saveState();
     }
 
     clearOldData(olderThanMs: number): void {

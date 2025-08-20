@@ -25,6 +25,7 @@ export interface TimelineHeatmapViewData {
     channels: any[];
     states: Map<string, any>;
     heatmapData: HeatmapData;
+    timeRange: string;
     navigation: string;
     baseCSS: string;
         baseScripts: string;
@@ -113,7 +114,7 @@ export function generateTimelineSwimlanesView(data: TimelineSwimlanesViewData & 
  * Generates timeline heatmap view - React-based implementation
  */
 export function generateTimelineHeatmapView(data: TimelineHeatmapViewData & { timelineBundleUri?: string }): string {
-    const { channels, heatmapData, navigation, baseCSS, baseScripts } = data;
+    const { channels, heatmapData, timeRange, navigation, baseCSS, baseScripts } = data;
     
     // Convert Map to plain object for JSON serialization
     const statesObj: Record<string, any> = {};
@@ -129,7 +130,8 @@ export function generateTimelineHeatmapView(data: TimelineHeatmapViewData & { ti
     const reactProps = {
         channels,
         states: statesObj,
-        heatmapData
+        heatmapData,
+        timeRange
     };
     
     return `
