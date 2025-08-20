@@ -552,8 +552,7 @@ export class DashboardManager {
             margin: 0 auto;
         }
         .metrics-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -563,6 +562,7 @@ export class DashboardManager {
             padding: 20px;
             border: 1px solid var(--vscode-panel-border);
             text-align: center;
+            flex: 1;
         }
         .metric-card.metric-good {
             border-color: var(--vscode-charts-green);
@@ -1403,8 +1403,7 @@ export class DashboardManager {
         
         /* Stats Grid */
         .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -1415,6 +1414,7 @@ export class DashboardManager {
             border-radius: 6px;
             padding: 16px;
             text-align: center;
+            flex: 1;
         }
         
         .metric-label {
