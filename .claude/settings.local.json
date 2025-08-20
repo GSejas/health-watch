@@ -20,7 +20,8 @@
       "WebSearch",
       "Bash(grep:*)",
       "Bash(Get-ChildItem -Path .node_modules@tremorreact -Filter tremor.css -Recurse)",
-      "Bash(npx tailwindcss init:*)"
+      "Bash(npx tailwindcss init:*)",
+      "Bash(code:*)"
     ],
     "deny": [],
     "ask": [],
