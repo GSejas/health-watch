@@ -134,40 +134,6 @@ export class DashboardManager {
                     }
                     await this.updateDashboard({ preserveState: true });
                     break;
-                case 'generateLiveReport':
-                    // Handle live report generation requests
-                    try {
-                        const reportData = await this.generateLiveReportData(message.filter || {});
-                        this.panel?.webview.postMessage({
-                            command: 'liveReportGenerated',
-                            data: reportData
-                        });
-                    } catch (error) {
-                        console.error('Failed to generate live report:', error instanceof Error ? error.message : String(error));
-                        this.panel?.webview.postMessage({
-                            command: 'liveReportError',
-                            error: (error as Error)?.message ?? String(error)
-                        });
-                    }
-                    break;
-                case 'exportLiveReport':
-                    // Handle live report export requests
-                    try {
-                        const markdown = message.markdown;
-                        const filename = `health-watch-report-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.md`;
-                        const uri = await this.exportReportToFile(markdown, filename);
-                        this.panel?.webview.postMessage({
-                            command: 'reportExported',
-                            uri: uri.toString()
-                        });
-                    } catch (error) {
-                        console.error('Failed to export live report:', error instanceof Error ? error.message : String(error));
-                        this.panel?.webview.postMessage({
-                            command: 'exportError',
-                            error: (error as Error)?.message ?? String(error)
-                        });
-                    }
-                    break;
                 case 'stateUpdate':
                     // Webview reports its current state for synchronization
                     this.currentState = { ...this.currentState, ...message.state };
@@ -292,8 +258,7 @@ export class DashboardManager {
             { id: 'overview', label: 'Overview', active: mainView === 'overview' },
             { id: 'metrics', label: 'Metrics', active: mainView === 'metrics' },
             { id: 'monitor', label: 'Live Monitor', active: mainView === 'monitor' },
-            { id: 'timeline', label: 'Timeline', active: mainView === 'timeline' },
-            { id: 'reports', label: 'Reports', active: mainView === 'reports' }
+            { id: 'timeline', label: 'Timeline', active: mainView === 'timeline' }
         ];
 
         const primaryNav = primaryNavButtons.map(btn => 
@@ -454,20 +419,6 @@ export class DashboardManager {
                     cspSource
                 });
 
-            case 'reports':
-                const reportsBundleUri = this.panel!.webview.asWebviewUri(this.getReportsBundleUri());
-                return this.generateLiveReportsView({
-                    channels,
-                    states,
-                    currentWatch: currentWatch || undefined,
-                    navigation,
-                    baseCSS,
-                    baseScripts,
-                    reactBundleUri: reportsBundleUri.toString(),
-                    nonce,
-                    cspSource
-                });
-                
             case 'overview':
             default:
                 return generateOverviewDashboard({
@@ -2170,97 +2121,6 @@ export class DashboardManager {
         return Math.round(totalTime / recoveryIncidents.length);
     }
 
-    /**
-     * Generate Live Reports View with React component
-     */
-    private generateLiveReportsView(data: {
-        channels: any[];
-        states: Map<string, any>;
-        currentWatch?: any;
-        navigation: string;
-        baseCSS: string;
-        baseScripts: string;
-        reactBundleUri?: string;
-        nonce?: string;
-        cspSource?: string;
-    }): string {
-        const { channels, states, currentWatch, navigation, baseCSS, baseScripts } = data;
-        
-        // Convert Map to plain object for JSON serialization
-        const statesObj: Record<string, any> = {};
-        states.forEach((value, key) => {
-            statesObj[key] = value;
-        });
-
-        // Samples are provided by the async data endpoint; keep empty placeholders here
-        const samples: Record<string, any[]> = {};
-        for (const channel of channels) {
-            samples[channel.id] = [];
-        }
-        
-        // Prepare props for React component
-        const reactProps = {
-            channels,
-            states: statesObj,
-            samples
-        };
-
-        return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${data.cspSource || ''} https:; script-src ${data.cspSource || ''} 'nonce-${data.nonce || ''}'; style-src ${data.cspSource || ''} https: 'unsafe-inline';">
-            <title>Health Watch - Live Reports</title>
-            ${baseCSS}
-        </head>
-        <body>
-            ${navigation}
-            <div id="live-reports-root"></div>
-            ${baseScripts}
-            <script nonce="${data.nonce || ''}" src="${typeof data.reactBundleUri === 'string' ? data.reactBundleUri : (data.reactBundleUri as any)?.toString?.()}"></script>
-            <script nonce="${data.nonce || ''}">
-                window.healthWatchProps = ${JSON.stringify(reactProps)};
-                window.healthWatchComponent = 'LiveReportView';
-            </script>
-        </body>
-        </html>
-        `;
-    }
-
-    /**
-     * Get the bundled React app URI for reports
-     */
-    private getReportsBundleUri(): vscode.Uri {
-        return vscode.Uri.joinPath(this.context!.extensionUri, 'dist', 'reports-view.js');
-    }
-
-    /**
-     * Generate live report data for real-time dashboard reports
-     */
-    private async generateLiveReportData(filter: any) {
-        const channels = this.configManager.getChannels();
-        const states = this.scheduler.getChannelRunner().getChannelStates();
-        const samples = new Map<string, any[]>();
-
-        // Collect samples for each channel based on filter (last 1 hour)
-        const oneHourAgo = Date.now() - (60 * 60 * 1000);
-        for (const channel of channels) {
-            const channelSamples = this.storageManager.getSamplesInWindow(channel.id, oneHourAgo, Date.now());
-            samples.set(channel.id, channelSamples || []);
-        }
-
-        return {
-            channels,
-            states,
-            samples: Array.from(samples.entries()).reduce((obj, [key, value]) => {
-                obj[key] = value;
-                return obj;
-            }, {} as any),
-            filter
-        };
-    }
 
     /**
      * Export report markdown to file in workspace

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { TimelineData } from '../../dashboardData';
 import { baseStyles } from '../shared/baseStyles';
+import { FilterPanel, FilterOptions } from '../shared/FilterPanel';
 
 export interface TimelineSwimlanesViewProps {
     channels: any[];
@@ -90,6 +91,12 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
     timelineData,
     timeRange
 }) => {
+    // Filter state
+    const [filters, setFilters] = useState<FilterOptions>({
+        timeRange: (timeRange.replace('D', 'd').toLowerCase() as any) || '7d',
+        selectedChannels: [],
+        showOnlyProblems: false
+    });
     const getTimeRangeDays = (timeRange: string): number => {
         switch (timeRange) {
             case '30D': return 30;
@@ -108,12 +115,17 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
         return labels;
     };
 
-    const handleTimeRangeChange = (newRange: string) => {
+    const handleFiltersChange = (newFilters: FilterOptions) => {
+        setFilters(newFilters);
+        
+        // Convert our time format back to backend format
+        const backendTimeRange = newFilters.timeRange.replace('d', 'D').toUpperCase();
+        
         // Communicate back to parent through webview messaging
         if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
                 command: 'changeTimeRange',
-                timeRange: newRange
+                timeRange: backendTimeRange
             });
         }
     };
@@ -130,6 +142,26 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
         return states as Record<string, any>;
     }, [states]);
 
+    // Filter channels based on selection and problems filter
+    const filteredChannels = useMemo(() => {
+        let result = channels;
+        
+        // Apply channel selection filter
+        if (filters.selectedChannels.length > 0) {
+            result = result.filter(channel => filters.selectedChannels.includes(channel.id));
+        }
+        
+        // Apply problems filter
+        if (filters.showOnlyProblems) {
+            result = result.filter(channel => {
+                const channelState = statesObj[channel.id];
+                return channelState && channelState.state === 'offline';
+            });
+        }
+        
+        return result;
+    }, [channels, filters, statesObj]);
+
     const days = getTimeRangeDays(timeRange);
     const dateLabels = generateDateLabels(days);
 
@@ -145,15 +177,46 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
         );
     }
 
+    if (filteredChannels.length === 0) {
+        return (
+            <div className="timeline-container">
+                <div className="timeline-header">
+                    <h2>Service Availability Timeline</h2>
+                </div>
+
+                <FilterPanel
+                    channels={channels}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    showProblemFilter={true}
+                />
+
+                <div className="empty-timeline">
+                    <div className="empty-icon">🔍</div>
+                    <div className="empty-title">No Matching Channels</div>
+                    <div className="empty-description">
+                        {filters.showOnlyProblems ? 
+                            "No channels are currently offline" : 
+                            "Try adjusting your filter settings"
+                        }
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="timeline-container">
             <div className="timeline-header">
                 <h2>Service Availability Timeline</h2>
-                <TimelineControls 
-                    timeRange={timeRange} 
-                    onTimeRangeChange={handleTimeRangeChange} 
-                />
             </div>
+
+            <FilterPanel
+                channels={channels}
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                showProblemFilter={true}
+            />
 
             <TimelineLegend />
 
@@ -167,7 +230,7 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
                 </div>
 
                 {/* Channel rows */}
-                {channels.map(channel => {
+                {filteredChannels.map(channel => {
                     const channelData = timelineData[channel.id] || [];
                     return (
                         <div key={channel.id} className="timeline-row">
