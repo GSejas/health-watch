@@ -257,4 +257,4 @@ Open VS Code Settings (`Ctrl+,`) and search for "Health Watch":
 
 **Happy Monitoring!** 🎯
 
-*Health Watch v1.0.5 - Local-first monitoring for VS Code*
+*Health Watch v1.0.6 - Local-first monitoring for VS Code*
