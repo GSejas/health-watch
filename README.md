@@ -203,6 +203,24 @@ This extension contributes the following VS Code settings:
  - Overview dashboard webview is style-less
  - Timeline dashboard webview is style-less
 
+### 1.0.5
+
+**🚀 Major Feature Enhancements**
+- Added live markdown reports dashboard with real-time Mermaid charts
+- Improved extension activation with async initialization for better startup reliability
+- Added time range filtering to timeline heatmap view
+- Integrated FilterPanel for Timeline views replacing separate Reports tab
+- Enhanced overview metrics with horizontal layout for better wide-screen utilization
+- Added comprehensive unit tests for various components and storage managers
+
+### 1.0.4
+
+**📊 Dashboard & Analytics**
+- Initial stable release with full monitoring dashboard
+- Real-time timeline views and heatmaps
+- Complete incident management system
+- SLO monitoring and tracking capabilities
+
 ### 1.0.3
 
 **🔧 Configuration & Templates**
