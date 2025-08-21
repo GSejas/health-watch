@@ -5,47 +5,57 @@
 The Health Watch extension implements a multi-tier storage architecture with in-memory caching, file-based persistence, and optional database backend. This analysis identifies implementation quality, reliability risks, and performance characteristics.
 
 ## Storage Architecture Overview
+## Diagram 1: Runtime and Persistence Layers
 
 ```mermaid
-graph TB
+graph LR
     subgraph "Runtime Layer"
         SM[StorageManager<br/>In-Memory Cache]
         CM[ConfigManager<br/>Configuration]
     end
-    
     subgraph "Persistence Layer"
         DSM[DiskStorageManager<br/>JSON Files]
-        MYSQL[MySQLStorage<br/>Database Tables]
-        VS[VS Code GlobalState<br/>Legacy Storage]
+        MYSQL[MySQLStorage<br/>Database]
     end
-    
-    subgraph "File System"
-        CH[channelStates.json]
-        CW[currentWatch.json]
-        WH[watchHistory.json]
-        OUT[outages.json]
-        CUST[custom_*.json]
-    end
-    
-    subgraph "Database"
-        HS[health_samples]
-        CS[channel_states]
-        WS[watch_sessions]
-        OT[outages]
-    end
-    
+    CM --> SM
     SM --> DSM
     SM --> MYSQL
+```
+
+## Diagram 2: Disk Storage File Mapping
+
+```mermaid
+graph TD
+    DSM[DiskStorageManager]
+    CH[channelStates.json]
+    CW[currentWatch.json]
+    WH[watchHistory.json]
+    OUT[outages.json]
+    CUST[custom_*.json]
+    VS[VS Code GlobalState<br/>Legacy Storage]
+    
     DSM --> CH
     DSM --> CW
     DSM --> WH
     DSM --> OUT
     DSM --> CUST
+    DSM -.->|Migration| VS
+```
+
+## Diagram 3: Database Tables Structure
+
+```mermaid
+graph TD
+    MYSQL[MySQLStorage]
+    HS[health_samples]
+    CS[channel_states]
+    WS[watch_sessions]
+    OT[outages]
+    
     MYSQL --> HS
     MYSQL --> CS
     MYSQL --> WS
     MYSQL --> OT
-    DSM -.->|Migration| VS
 ```
 
 ## Implementation Analysis

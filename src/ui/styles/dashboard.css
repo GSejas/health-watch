@@ -1,0 +1,33 @@
+/**
+ * Health Watch Dashboard CSS
+ * 
+ * PHASE 1 TEST FILE - Minimal CSS to verify build pipeline
+ * 
+ * CRITICAL SECURITY NOTE: 
+ * - This must comply with VS Code webview CSP restrictions
+ * - Previous Tailwind integration failed due to CSP violations (Risk R15)
+ * - Only vanilla CSS allowed, no external frameworks
+ * 
+ * Build Target: dist/dashboard.css
+ * Used By: webview HTML generation in dashboard.ts
+ * 
+ * @author Health Watch Team
+ * @version 1.0.0
+ * @date 2025-08-20
+ */
+
+/* 
+ * PHASE 1: Minimal test styles 
+ * These styles will NOT replace existing inline CSS yet
+ * This is purely to test the build pipeline
+ */
+
+/* Test comment to verify CSS processing */
+.health-watch-test {
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+}
+
+/* Future: Base theme variables will go here */
+/* Future: Layout utilities will go here */  
+/* Future: Component styles will go here */

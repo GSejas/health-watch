@@ -174,6 +174,24 @@ async function main() {
 		],
 	});
 
+	// Build base dashboard CSS (EXPERIMENTAL - Phase 1)
+	// NOTE: This is a minimal test to verify CSS bundling works without breaking webview security
+	// CRITICAL: Previous Tailwind integration failed due to VS Code CSP restrictions (Risk R15)
+	const cssCtx = await esbuild.context({
+		entryPoints: [
+			'src/ui/styles/dashboard.css'  // Will create this file if bundling works
+		],
+		bundle: true,
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		outfile: 'dist/dashboard.css',
+		logLevel: 'silent',
+		plugins: [
+			esbuildProblemMatcherPlugin,
+		],
+	});
+
 	if (watch) {
 		await Promise.all([
 			extensionCtx.watch(),
@@ -181,7 +199,8 @@ async function main() {
 			overviewCtx.watch(),
 			timelineCtx.watch(),
 			monitorCtx.watch(),
-			reportsCtx.watch()
+			reportsCtx.watch(),
+			cssCtx.watch()
 		]);
 	} else {
 		await Promise.all([
@@ -190,7 +209,8 @@ async function main() {
 			overviewCtx.rebuild(),
 			timelineCtx.rebuild(),
 			monitorCtx.rebuild(),
-			reportsCtx.rebuild()
+			reportsCtx.rebuild(),
+			cssCtx.rebuild()
 		]);
 		await Promise.all([
 			extensionCtx.dispose(),
@@ -198,7 +218,8 @@ async function main() {
 			overviewCtx.dispose(),
 			timelineCtx.dispose(),
 			monitorCtx.dispose(),
-			reportsCtx.dispose()
+			reportsCtx.dispose(),
+			cssCtx.dispose()
 		]);
 	}
 }

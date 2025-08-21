@@ -411,6 +411,94 @@ Minimal sample `.healthwatch.json` (starter):
 }
 ```
 
+---
+
+### Multi-window & install permutations
+
+Purpose: map out observed behavior and expectations when users run multiple VS Code windows/instances concurrently and across install/reinstall permutations. This helps reproduce environment-specific bugs (activation races, storage access, duplicate schedulers) and define acceptance tests.
+
+Core dimensions
+- Window count: single VS Code window vs multiple windows (2+ windows) opened simultaneously
+- Workspace type: same workspace folder opened in multiple windows vs different workspaces (distinct folders)
+- Extension state: not installed, installed fresh, already installed (running in other window), reinstalled/updated
+- Storage state: empty globalStorage / existing persisted state / concurrent access
+- Network: offline/online during activation
+
+Common permutations
+
+1) Single window — fresh install (first install, extension not previously installed)
+  - Before: no extension data; `globalStorage` empty; no `.healthwatch.json` in workspace.
+  - Activation: extension activates; StorageManager initializes disk storage at `globalStorageUri`; Scheduler created and started.
+  - After: `api.ready` resolves; probes scheduled only for channels in the current workspace config.
+  - Risks: none specific; baseline for comparison.
+
+2) Single window — reinstall (extension updated or reinstalled)
+  - Before: `globalStorage` contains previous state, outages, samples.
+  - Activation: extension initializes and loads persisted state; if schema changed, StorageManager must migrate safely.
+  - After: previous channels and outages restored; Scheduler resumes with historical state.
+  - Risks: migration bugs, unhandled schema changes, slow disk reads causing delayed readiness.
+
+3) Two windows — same workspace folder opened twice (two extension hosts)
+  - Before: extension is installed; user opens same folder in two separate windows (e.g., split dev windows).
+  - Activation sequence: both extension hosts load the same `globalStorage` and workspace files. They each instantiate a Scheduler and StorageManager (in-process per extension host) but may race reading/writing the same disk files.
+  - Observed behavior (current): each host maintains its own in-memory scheduler; disk storage reads/writes may interleave; no cross-host coordination.
+  - After: duplicate probes may appear logically (two hosts monitoring same services). UI in each host reflects its own runtime.
+  - Risks: disk write conflicts, out-of-order updates, duplicate notifications, activation race where one host starts before storage finishes and gets default/empty state (this previously caused the TypeError). Recovery pattern: the second host should gracefully read existing files and co-exist.
+
+4) Two windows — different workspace folders but same extension installed
+  - Before: each window has its own workspace; globalStorage is shared by extension (per user); workspace configs differ.
+  - Activation: each host initializes independently and schedules probes based on its workspace config.
+  - After: independent monitoring; global data (outages, global settings) saved to the same storage files.
+  - Risks: concurrent writes to `globalStorage` or the disk storage adapter; ensure disk write operations are atomic and safe (use write temp + rename and file locks where possible).
+
+5) Window A running, Window B opens while A is active (race)
+  - Sequence: A has been running probes; B opens and activates quickly while A is mid-write to disk (samples/outages). B's StorageManager reads incomplete files or default state if reads happen before writes flush.
+  - Observed issues: B may start with stale/default state and schedule probes leading to duplicated or inconsistent channel state.
+  - Mitigation: implement storage readiness handshake (StorageManager.whenReady()) and have API/runner await readiness before scheduling probes. Use write-ahead logs or file locking to reduce read-during-write races.
+
+6) New machine or fresh globalStorage (first-run on another window/session)
+  - Before: no persisted state for this user/machine.
+  - Activation: default config used; extension prompts for setup or shows welcome; probes only run after explicit config or sample creation.
+  - Risk: onboarding friction; recommend first-run welcome and creating sample config.
+
+7) Reinstall while other window/host is active (uninstall/reinstall or update)
+  - Sequence: user installs update (new VSIX) while other extension host window is running previous version.
+  - Risks: mixed versions writing to storage with incompatible schema; recommended to ensure backward-compatible writes and add a version field in storage to support migrations.
+
+8) Multiple windows + network offline during activation
+  - Sequence: windows open offline; probes fail; outage detection may mark channels offline; when network restores, hosts may simultaneously record recoveries. This inflates outage records if not deduplicated across hosts.
+  - Mitigation: deduplicate write sequences and use `firstFailureTime`/`actualDuration` semantics to compute impact consistently.
+
+Test matrix (quick)
+
+Rows: WindowCount (1,2), WorkspaceSame (same/different), ExtState (fresh/reinstall/running), Network (online/offline)
+
+Columns to observe: activation time, api.ready resolved, storage load success, duplicate probes, disk write errors, UI inconsistencies, notification duplicates.
+
+Example test entries:
+- (1, -, fresh, online) → baseline: expect api.ready within 1-2s, no duplicate probes.
+- (2, same, running, online) → expect two extension hosts, storage reads consistent, no corrupted files.
+- (2, different, fresh, offline) → expect offline probes; ensure outages are recorded and not duplicated.
+
+Developer checklist (to harden behavior)
+- Ensure `StorageManager.initialize()` or `whenReady()` is awaited by schedulers before starting probe loops.
+- Make disk writes atomic (temp file + rename) and consider a simple advisory lock to avoid concurrent writes.
+- Add a storage `schemaVersion` and migration path; refuse to run or warn when incompatible.
+- Debounce/serialize notifications across hosts (e.g., deduplicate same outage notifications within a short window).
+- Add an integration test harness using `@vscode/test-electron` that spawns multiple extension hosts and asserts storage invariants.
+
+User-facing guidance
+- Document known behavior when opening the same workspace in multiple windows (duplicate monitoring is expected; per-window runtime is independent).
+- Recommend using single host for production monitoring or rely on a central server-backed storage for multi-host coordination.
+
+Acceptance criteria for fixes
+- No activation exceptions related to null dependencies (TypeError) on machines with slower IO.
+- Storage reads always yield valid JSON or a clear error and action to recover.
+- Duplicate notifications are limited or deduplicated within a configurable window.
+
+---
+
+
 ```
 📄 SAMPLE CONFIG EXAMPLES
 ┌─────────────────────────────────────────────────────────────┐

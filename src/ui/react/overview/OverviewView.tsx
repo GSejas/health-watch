@@ -235,7 +235,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return (
         <div className="overview-container">
             {/* Quick Statistics */}
-            <div className="metrics-grid">
+            <div className="metrics-summary">
                 <MetricCard
                     label="Availability"
                     value={`${availability}%`}

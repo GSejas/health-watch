@@ -22,7 +22,8 @@
       "Bash(Get-ChildItem -Path .node_modules@tremorreact -Filter tremor.css -Recurse)",
       "Bash(npx tailwindcss init:*)",
       "Bash(code:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": [],
