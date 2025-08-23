@@ -98,6 +98,30 @@ const MODULE_CONFIG = {
       'test/unit/stats.test.ts',
       'test/unit/report.test.ts'
     ]
+  },
+  watch: {
+    name: 'Watch Management',
+    target: 85,
+    priority: 'HIGH',
+    srcPattern: 'src/watch/**/*.ts',
+    testPattern: 'test/unit/watch/**/*.test.ts',
+    files: [
+      'test/unit/watch/individualWatchManager.test.ts',
+      'test/unit/watch/watchSession.test.ts',
+      'test/unit/watch/watchCoordination.test.ts'
+    ]
+  },
+  coordination: {
+    name: 'Multi-Window Coordination',
+    target: 80,
+    priority: 'HIGH',
+    srcPattern: 'src/coordination/**/*.ts',
+    testPattern: 'test/unit/coordination/**/*.test.ts',
+    files: [
+      'test/unit/coordination/multiWindowCoordination.test.ts',
+      'test/unit/coordination/coordinatedScheduler.test.ts',
+      'test/unit/coordination/leaderElection.test.ts'
+    ]
   }
 };
 

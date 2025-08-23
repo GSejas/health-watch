@@ -15,7 +15,7 @@ import { ReportGenerator } from './report';
 
 let healthWatchAPI: HealthWatchAPIImpl;
 
-export async function activate(context: vscode.ExtensionContext): Promise<HealthWatchAPIImpl> {
+export function activate(context: vscode.ExtensionContext): HealthWatchAPIImpl {
     console.log('Health Watch extension is activating...');
 
     try {
@@ -24,19 +24,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<Health
         const storageManager = StorageManager.initialize(context);
         const guardManager = GuardManager.getInstance();
         
-        // Wait for storage to be ready before proceeding
-        console.log('Waiting for storage to be ready...');
-        await storageManager.whenReady();
-        console.log('Storage ready, initializing components...');
+        // Wait for storage to be ready before creating components that depend on it
+        // Note: We return the API immediately but start async initialization
+        const initPromise = initializeAsync(context, configManager, storageManager, guardManager);
         
-        // Now safely initialize all components
-        const components = await initializeAsync(context, configManager, storageManager, guardManager);
-        
-        // Return the fully initialized API
-        healthWatchAPI = components.healthWatchAPI;
-        console.log('Health Watch extension activated successfully');
-        
-        return healthWatchAPI;
+        // Return API immediately - the async initialization will complete in background
+        return createHealthWatchAPI(initPromise);
         
     } catch (error) {
         console.error('Failed to activate Health Watch extension:', error);
@@ -62,8 +55,9 @@ async function initializeAsync(
     reportGenerator: ReportGenerator;
     healthWatchAPI: HealthWatchAPIImpl;
 }> {
-    // Storage is already ready at this point (awaited in activate function)
-    console.log('Initializing components with ready storage...');
+    // Wait for storage to be ready
+    await storageManager.whenReady();
+    console.log('Storage is ready, initializing components...');
     
     // Now safely initialize scheduler and runners
     const scheduler = new Scheduler();
@@ -101,7 +95,7 @@ async function initializeAsync(
     });
     
     // Register commands
-    registerCommands(context, scheduler, healthWatchAPIInstance, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, incidentsProvider);
+    registerCommands(context, scheduler, healthWatchAPIInstance, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, statusBarManager, incidentsProvider);
     
     // Set context for when clauses
     vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
@@ -140,6 +134,29 @@ async function initializeAsync(
     };
 }
 
+function createHealthWatchAPI(initPromise: Promise<any>): HealthWatchAPIImpl {
+    // Create a placeholder API that will be populated once initialization completes
+    const api = new HealthWatchAPIImpl(null as any); // Temporary null scheduler
+    
+    // Initialize properly in background
+    initPromise.then(async (components) => {
+        console.log('Async initialization completed');
+        const { healthWatchAPI: realAPI } = components;
+        
+        // Replace the placeholder API properties with the real ones
+        Object.setPrototypeOf(api, Object.getPrototypeOf(realAPI));
+        Object.assign(api, realAPI);
+        
+        // Store global reference
+        healthWatchAPI = api;
+    }).catch(error => {
+        console.error('Failed to complete async initialization:', error);
+        vscode.window.showErrorMessage(`Health Watch initialization failed: ${error}`);
+    });
+    
+    return api;
+}
+
 function registerCommands(
     context: vscode.ExtensionContext,
     scheduler: Scheduler,
@@ -149,6 +166,7 @@ function registerCommands(
     treeProvider: ChannelTreeProvider,
     notificationManager: NotificationManager,
     dashboardManager: DashboardManager,
+    statusBarManager?: StatusBarManager,
     incidentsProvider?: IncidentsTreeProvider
 ) {
     const commands: Array<[string, (...args: any[]) => any]> = [
@@ -164,7 +182,7 @@ function registerCommands(
             }
         }],
         
-        ['healthWatch.stopWatch', async () => {
+        ['healthWatch.stopWatch', () => {
             try {
                 api.stopWatch();
                 vscode.window.showInformationMessage('Health Watch stopped');
@@ -342,6 +360,119 @@ function registerCommands(
             } catch (error) {
                 vscode.window.showErrorMessage(`Failed to open configuration: ${error}`);
             }
+        }],
+
+        // Individual Channel Watch Commands
+        ['healthWatch.startChannelWatch', async (item?: any) => {
+            try {
+                // item can be a TreeItem from context menu or undefined from command palette
+                const channelId = item?.channelId || item?.id;
+                
+                if (!channelId) {
+                    // Show channel picker if no channel specified
+                    const channels = api.listChannels();
+                    if (channels.length === 0) {
+                        vscode.window.showWarningMessage('No channels configured');
+                        return;
+                    }
+                    
+                    const channelItems = channels.map(ch => ({ 
+                        label: ch.name || ch.id, 
+                        description: ch.type, 
+                        channelId: ch.id 
+                    }));
+                    
+                    const selectedChannel = await vscode.window.showQuickPick(channelItems, 
+                        { placeHolder: 'Select channel to watch' }
+                    );
+                    
+                    if (!selectedChannel) return;
+                    
+                    const duration = await showWatchDurationPicker();
+                    if (!duration) return;
+                    
+                    api.individualWatchManager?.startChannelWatch(selectedChannel.channelId, { duration: duration as any });
+                    vscode.window.showInformationMessage(`Started individual watch for ${selectedChannel.label}`);
+                } else {
+                    // Start watch for specific channel
+                    const duration = await showWatchDurationPicker();
+                    if (!duration) return;
+                    
+                    api.individualWatchManager?.startChannelWatch(channelId, { duration: duration as any });
+                    vscode.window.showInformationMessage(`Started individual watch for channel ${channelId}`);
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to start channel watch: ${error}`);
+            }
+        }],
+
+        ['healthWatch.stopChannelWatch', async (item?: any) => {
+            try {
+                const channelId = item?.channelId || item?.id;
+                
+                if (!channelId) {
+                    // Show active watches picker
+                    const activeWatches = api.individualWatchManager?.getActiveWatches() || [];
+                    if (activeWatches.length === 0) {
+                        vscode.window.showInformationMessage('No active individual watches');
+                        return;
+                    }
+                    
+                    const watchItems = activeWatches.map((watch: any) => ({ 
+                        label: `${watch.channelId}`, 
+                        description: `Started ${new Date(watch.startTime).toLocaleTimeString()}`,
+                        channelId: watch.channelId 
+                    }));
+                    
+                    const selectedWatch = await vscode.window.showQuickPick(watchItems,
+                        { placeHolder: 'Select watch to stop' }
+                    );
+                    
+                    if (!selectedWatch) return;
+                    
+                    api.individualWatchManager?.stopChannelWatch(selectedWatch.channelId);
+                    vscode.window.showInformationMessage(`Stopped individual watch for ${selectedWatch.label}`);
+                } else {
+                    // Stop watch for specific channel
+                    api.individualWatchManager?.stopChannelWatch(channelId);
+                    vscode.window.showInformationMessage(`Stopped individual watch for channel ${channelId}`);
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to stop channel watch: ${error}`);
+            }
+        }],
+
+        ['healthWatch.toggleDebugMode', () => {
+            if (statusBarManager) {
+                statusBarManager.toggleDebugMode();
+                const isEnabled = statusBarManager.isDebugModeEnabled();
+                vscode.window.showInformationMessage(
+                    `Health Watch debug mode ${isEnabled ? 'enabled' : 'disabled'}`
+                );
+            } else {
+                vscode.window.showWarningMessage('Status bar manager not available');
+            }
+        }],
+
+        ['healthWatch.runInternetCheck', async () => {
+            try {
+                // Find internet channel and run it immediately
+                const channels = api.listChannels();
+                const internetChannel = channels.find(ch => 
+                    ch.id === 'internet' || 
+                    ch.name?.toLowerCase().includes('internet') ||
+                    ch.type === 'https'
+                );
+                
+                if (internetChannel) {
+                    await api.runChannelNow(internetChannel.id);
+                    vscode.window.showInformationMessage(`Internet check completed for ${internetChannel.name || internetChannel.id}`);
+                } else {
+                    vscode.window.showWarningMessage('No internet channel found to test');
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Internet check failed: ${error}`);
+            }
         }]
     ];
     
@@ -439,12 +570,12 @@ function showDetailsWebview(context: vscode.ExtensionContext, api: HealthWatchAP
         }
     );
     
-    // API is already ready at this point since activation completed
     const channels = api.listChannels();
     const currentWatch = api.getCurrentWatch();
     const states = api.getChannelStates();
+    
     panel.webview.html = generateDetailsHTML(channels, currentWatch, states);
-
+    
     // Refresh webview when data changes
     const disposable = api.onStateChange(() => {
         const updatedChannels = api.listChannels();
@@ -452,7 +583,7 @@ function showDetailsWebview(context: vscode.ExtensionContext, api: HealthWatchAP
         const updatedStates = api.getChannelStates();
         panel.webview.html = generateDetailsHTML(updatedChannels, updatedWatch, updatedStates);
     });
-
+    
     panel.onDidDispose(() => {
         disposable.dispose();
     });

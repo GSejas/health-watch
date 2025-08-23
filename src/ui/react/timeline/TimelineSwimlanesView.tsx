@@ -118,14 +118,12 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
     const handleFiltersChange = (newFilters: FilterOptions) => {
         setFilters(newFilters);
         
-        // Convert our time format back to backend format
-        const backendTimeRange = newFilters.timeRange.replace('d', 'D').toUpperCase();
-        
+        // No format conversion needed - dashboard now handles FilterPanel format directly
         // Communicate back to parent through webview messaging
         if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
                 command: 'changeTimeRange',
-                timeRange: backendTimeRange
+                range: newFilters.timeRange  // Use the FilterPanel format directly
             });
         }
     };

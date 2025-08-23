@@ -4,14 +4,18 @@ import { StorageManager } from '../storage';
 import { Scheduler } from '../runner/scheduler';
 import { ChannelInfo, ChannelState } from '../types';
 import { ChannelDefinition } from '../config';
+import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
+import { CoordinatedScheduler } from '../coordination/coordinatedScheduler';
 
 export class StatusBarManager {
     private statusBarItem: vscode.StatusBarItem;
     private channelItems: Map<string, vscode.StatusBarItem> = new Map();
+    private debugStatusBarItem?: vscode.StatusBarItem;
     private configManager = ConfigManager.getInstance();
     private storageManager = StorageManager.getInstance();
     private scheduler: Scheduler;
     private updateTimer?: NodeJS.Timeout;
+    private debugMode: boolean = false;
 
     constructor(scheduler: Scheduler) {
         this.scheduler = scheduler;
@@ -41,6 +45,13 @@ export class StatusBarManager {
         this.scheduler.on('stopped', () => {
             this.updateStatusBar();
         });
+
+        // Listen for coordination changes if using CoordinatedScheduler
+        if (this.scheduler instanceof CoordinatedScheduler) {
+            this.scheduler.on('coordinationChanged', () => {
+                this.updateStatusBar();
+            });
+        }
     }
 
     private startPeriodicUpdates() {
@@ -102,7 +113,7 @@ export class StatusBarManager {
 
             if (currentWatch?.isActive) {
                 const remaining = this.formatWatchRemaining(currentWatch);
-                text = `${statusIcon}${latency ? ' ' + latency : ''} Watch: ${remaining}`;
+                text = `${statusIcon}${latency ? ' ' + latency : ''} ${TerminologyMap.UILabels.statusBarActiveMonitoring}: ${remaining}`;
                 tooltip = this.buildInternetTooltip(internetChannel, internetState, currentWatch);
             } else {
                 text = `${statusIcon}${latency ? ' ' + latency : ''}`;
@@ -127,6 +138,11 @@ export class StatusBarManager {
         this.statusBarItem.tooltip = tooltip;
         this.statusBarItem.backgroundColor = backgroundColor;
         this.statusBarItem.show();
+        
+        // Update debug status bar if enabled
+        if (this.debugMode) {
+            this.updateDebugStatusBar();
+        }
     }
 
     private getStatusBarMode(): 'none' | 'minimal' | 'mini-multi-channel' | 'compact' {
@@ -210,6 +226,11 @@ export class StatusBarManager {
         this.statusBarItem.backgroundColor = backgroundColor;
         this.statusBarItem.command = 'healthWatch.openDashboard';
         this.statusBarItem.show();
+        
+        // Update debug status bar if enabled
+        if (this.debugMode) {
+            this.updateDebugStatusBar();
+        }
     }
 
     private updateChannelItems() {
@@ -368,12 +389,24 @@ export class StatusBarManager {
         const lines: string[] = [];
         
         if (watch?.isActive) {
-            lines.push('Health Watch - Active Session');
+            lines.push(`Health Watch - ${TerminologyMap.MonitoringModes.intensive.new}`);
             const remaining = this.formatWatchRemaining(watch);
             lines.push(`Duration: ${remaining}`);
             lines.push(`Started: ${new Date(watch.startTime).toLocaleTimeString()}`);
         } else {
-            lines.push('Health Watch - Internet Status');
+            lines.push(`Health Watch - ${TerminologyMap.MonitoringModes.baseline.new}`);
+        }
+        
+        // Add coordination status if enabled
+        if (this.scheduler instanceof CoordinatedScheduler) {
+            const isCoordinationEnabled = this.scheduler.isCoordinationEnabled();
+            if (isCoordinationEnabled) {
+                const coordinationManager = (this.scheduler as any)['coordinationManager'];
+                if (coordinationManager) {
+                    const isLeader = coordinationManager.isLeader();
+                    lines.push(`Mode: ${isLeader ? 'Leader' : 'Follower'} (Multi-window)`);
+                }
+            }
         }
         
         lines.push('');
@@ -386,7 +419,10 @@ export class StatusBarManager {
             lines.push(`Target: ${channel.target}`);
         }
         
-        lines.push(`Status: ${state.state.toUpperCase()}`);
+        const displayState = state.state === 'online' ? TerminologyMap.ServiceStates.online.new : 
+                            state.state === 'offline' ? TerminologyMap.ServiceStates.offline.new : 
+                            TerminologyMap.ServiceStates.unknown.new;
+        lines.push(`Status: ${displayState.toUpperCase()}`);
         
         if (state.lastSample?.latencyMs) {
             lines.push(`Latency: ${state.lastSample.latencyMs}ms`);
@@ -472,7 +508,7 @@ export class StatusBarManager {
     }
 
     private buildWatchTooltip(watch: any, states: Map<string, any>): string {
-        const lines: string[] = ['Active Watch'];
+        const lines: string[] = [TerminologyMap.MonitoringModes.intensive.new];
         lines.push('');
 
         const duration = watch.duration === 'forever' 
@@ -504,11 +540,121 @@ export class StatusBarManager {
         }
 
         const parts: string[] = [];
-        if (online > 0) {parts.push(`${online} online`);}
-        if (offline > 0) {parts.push(`${offline} offline`);}
-        if (unknown > 0) {parts.push(`${unknown} unknown`);}
+        if (online > 0) {parts.push(`${online} ${TerminologyMap.ServiceStates.online.new.toLowerCase()}`);}
+        if (offline > 0) {parts.push(`${offline} ${TerminologyMap.ServiceStates.offline.new.toLowerCase()}`);}
+        if (unknown > 0) {parts.push(`${unknown} ${TerminologyMap.ServiceStates.unknown.new.toLowerCase()}`);}
 
         return parts.join(', ') || 'No channels';
+    }
+
+    // Debug mode methods for multi-window coordination visibility
+    toggleDebugMode(): void {
+        this.debugMode = !this.debugMode;
+        
+        if (this.debugMode) {
+            this.createDebugStatusBarItem();
+            this.updateDebugStatusBar();
+        } else {
+            this.disposeDebugStatusBarItem();
+        }
+        
+        console.log(`Health Watch debug mode: ${this.debugMode ? 'enabled' : 'disabled'}`);
+    }
+
+    private createDebugStatusBarItem(): void {
+        if (this.debugStatusBarItem) {
+            this.debugStatusBarItem.dispose();
+        }
+        
+        // Create debug item to the right of main status bar item
+        this.debugStatusBarItem = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Left, 
+            99  // Just slightly lower priority than main item (100)
+        );
+        this.debugStatusBarItem.command = 'healthWatch.toggleDebugMode';
+    }
+
+    private updateDebugStatusBar(): void {
+        if (!this.debugMode || !this.debugStatusBarItem) {
+            return;
+        }
+
+        let debugText = '';
+        let debugTooltip = 'Health Watch Debug Mode\n\n';
+        
+        if (this.scheduler instanceof CoordinatedScheduler) {
+            const coordinationManager = (this.scheduler as any)['coordinationManager'];
+            
+            if (coordinationManager) {
+                const isEnabled = this.scheduler.isCoordinationEnabled();
+                const isLeader = coordinationManager.isLeader();
+                const hasLock = coordinationManager.hasLock?.() || false;
+                const instanceId = coordinationManager.getInstanceId?.() || 'unknown';
+                
+                // Build debug text with coordination status
+                if (!isEnabled) {
+                    debugText = '🔧 Solo';
+                    debugTooltip += 'Coordination: Disabled (single window)\n';
+                } else {
+                    const roleIcon = isLeader ? '👑' : '👥';
+                    const lockIcon = hasLock ? '🔒' : '🔓';
+                    debugText = `${roleIcon}${lockIcon}`;
+                    
+                    debugTooltip += `Coordination: Enabled (multi-window)\n`;
+                    debugTooltip += `Role: ${isLeader ? 'Leader' : 'Follower'}\n`;
+                    debugTooltip += `Lock: ${hasLock ? 'Acquired' : 'Released'}\n`;
+                    debugTooltip += `Instance: ${instanceId.substring(0, 8)}...\n`;
+                }
+                
+                // Add timing information if available
+                const nextElectionTime = coordinationManager.getNextElectionTime?.();
+                if (nextElectionTime) {
+                    const remaining = Math.max(0, nextElectionTime - Date.now());
+                    if (remaining > 0) {
+                        const seconds = Math.ceil(remaining / 1000);
+                        debugTooltip += `Next election: ${seconds}s\n`;
+                    }
+                }
+                
+                // Add active channels count
+                const channelStates = this.scheduler.getChannelRunner().getChannelStates();
+                const activeChannels = Array.from(channelStates.values()).filter(state => state.state !== 'unknown').length;
+                debugTooltip += `Active channels: ${activeChannels}\n`;
+            } else {
+                debugText = '❓ Coord';
+                debugTooltip += 'Coordination: Manager not available\n';
+            }
+        } else {
+            debugText = '🔧 Basic';
+            debugTooltip += 'Coordination: Not using CoordinatedScheduler\n';
+        }
+        
+        // Add current watch information
+        const currentWatch = this.storageManager.getCurrentWatch();
+        if (currentWatch?.isActive) {
+            debugText += ' 🎯';
+            debugTooltip += `\nWatch: Active (${currentWatch.duration})\n`;
+            debugTooltip += `Started: ${new Date(currentWatch.startTime).toLocaleTimeString()}\n`;
+        } else {
+            debugTooltip += '\nWatch: Inactive\n';
+        }
+        
+        debugTooltip += '\nClick to toggle debug mode';
+        
+        this.debugStatusBarItem.text = debugText;
+        this.debugStatusBarItem.tooltip = debugTooltip;
+        this.debugStatusBarItem.show();
+    }
+
+    private disposeDebugStatusBarItem(): void {
+        if (this.debugStatusBarItem) {
+            this.debugStatusBarItem.dispose();
+            this.debugStatusBarItem = undefined;
+        }
+    }
+
+    isDebugModeEnabled(): boolean {
+        return this.debugMode;
     }
 
     dispose() {
@@ -516,5 +662,7 @@ export class StatusBarManager {
             clearInterval(this.updateTimer);
         }
         this.statusBarItem.dispose();
+        this.disposeDebugStatusBarItem();
+        this.disposeChannelItems();
     }
 }

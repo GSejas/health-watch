@@ -42,7 +42,7 @@ describe('CSS Bundle Integration', () => {
         // Setup mock webview panel
         mockPanel = {
             webview: {
-                asWebviewUri: vi.fn((uri) => ({
+                asWebviewUri: vi.fn((uri: any) => ({
                     toString: () => `vscode-webview://test/${uri.fsPath}`
                 })),
                 cspSource: 'vscode-webview:'
@@ -66,7 +66,7 @@ describe('CSS Bundle Integration', () => {
         mockPanel.webview.asWebviewUri = vi.fn().mockReturnValue(mockWebviewUri);
 
         // Verify the URI follows VS Code security patterns
-        const result = mockPanel.webview.asWebviewUri(mockUri);
+    const result = mockPanel.webview.asWebviewUri(mockUri as any);
         expect(result.toString()).toMatch(/^vscode-webview:/);
         expect(result.toString()).toContain('dashboard.css');
     });
@@ -79,12 +79,12 @@ describe('CSS Bundle Integration', () => {
         const mockCssUri = { fsPath: `/test/extension/path/${cssPath}` };
         const mockJsUri = { fsPath: `/test/extension/path/${jsPath}` };
 
-        (vscode.Uri.joinPath as any).mockImplementation((extensionUri, ...segments) => ({
+        (vscode.Uri.joinPath as any).mockImplementation((extensionUri: any, ...segments: any[]) => ({
             fsPath: `/test/extension/path/${segments.join('/')}`
         }));
 
-        const cssWebviewUri = mockPanel.webview.asWebviewUri(mockCssUri);
-        const jsWebviewUri = mockPanel.webview.asWebviewUri(mockJsUri);
+    const cssWebviewUri = mockPanel.webview.asWebviewUri(mockCssUri as any);
+    const jsWebviewUri = mockPanel.webview.asWebviewUri(mockJsUri as any);
 
         // Both should use the same webview protocol
         expect(cssWebviewUri.toString()).toMatch(/^vscode-webview:/);

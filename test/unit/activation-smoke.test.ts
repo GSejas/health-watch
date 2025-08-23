@@ -6,8 +6,8 @@ describe('Activation smoke tests', () => {
         const api = new HealthWatchAPIImpl(null as any);
 
         // Simulate a readiness promise that resolves later
-        let resolveReady: () => void;
-        api.ready = new Promise<void>((res) => { resolveReady = res; });
+    let resolveReady: () => void = () => {};
+    api.ready = new Promise<void>((res) => { resolveReady = res; });
 
         // Calls that rely on scheduler should throw a friendly error, not TypeError
         let threw = false;

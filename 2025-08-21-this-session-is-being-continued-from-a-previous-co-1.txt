@@ -1,0 +1,77 @@
+╭───────────────────────────────────────────────────────────╮
+│ ✻ Welcome to Claude Code!                                 │
+│                                                           │
+│   /help for help, /status for your current setup          │
+│                                                           │
+│   cwd: C:\Users\delir\Documents\repos\lossy\health-watch  │
+╰───────────────────────────────────────────────────────────╯
+● Compact summary (ctrl+r to expand)
+  ⎿  Read dist\dashboard.css (7 lines)
+  ⎿  Read src\terminology\semanticMapping.ts (259 lines)
+  ⎿  Read src\runner\channelRunner.ts (377 lines)
+  ⎿  Read test\unit\adaptiveBackoff.test.ts (242 lines)
+  ⎿  Read src\runner\scheduler.ts (395 lines)
+  ⎿  Todo list read (5 items)
+  ⎿  5-hour limit reached ∙ resets 3am
+     /upgrade to increase your usage limit.
+
+> /export 
+  ⎿  Conversation exported to: 2025-08-21-this-session-is-being-continued-from-a-previous-co.txt
+
+> what is the actual solve you proposed, before this semantics file, for the concept issues? do we have 
+  that documented, where we document actual code changes to account for the conflation and just complexity
+   of current features
+
+● Looking at the tracking documentation I created, the actual code changes I proposed for the concept
+  issues were:
+
+● Read(docs\tracking\conceptual-issues-tracking.csv)
+  ⎿  Read 13 lines (ctrl+r to expand)
+
+● Read(docs\tracking\implementation-priority-proposal.csv)
+  ⎿  Read 16 lines (ctrl+r to expand)
+
+● The actual code solutions I proposed for the concept issues were:
+
+  CRITICAL-2: Watch vs Monitoring Terminology (Currently In Progress)
+
+  Code Changes:
+  - API Methods: Rename startWatch() → beginActiveMonitoring(), stopWatch() → returnToBaseline()
+  - UI Strings: "Start Watch" → "Monitor Closely", "Watch Mode" → "Active Monitoring"
+  - Status Bar: "Watch: Active" → "Active Monitoring"
+  - Semantic Mapping: Created src/terminology/semanticMapping.ts with complete terminology transformation
+
+  HIGH-4: Individual Channel Watch
+
+  Code Changes:
+  - New API Methods: watchChannel(channelId, duration), stopWatchingChannel(channelId)
+  - Enhanced Channel Cards: Add individual "Monitor Closely" buttons per channel
+  - WatchManager: Support per-channel watch sessions instead of just global
+  - Scheduler Logic: Apply intensive intervals to specific channels only
+
+  HIGH-5: Configuration Precedence Simplification
+
+  Code Changes:
+  - Clear Hierarchy: channel.intervalSec > watch.highCadence > fishy.baseline > defaults.intervalSec
+  - UI Indicators: Show "why this interval" explanations in tooltips
+  - ConfigManager Refactor: Single getEffectiveInterval(channelId) method that shows precedence reasoning
+
+  MEDIUM-3: Monitoring Mode Mental Model
+
+  Code Changes:
+  - MonitoringMode Enum: baseline | intensive | crisis | paused
+  - State Indicators: Visual mode indicators in UI showing current monitoring intensity
+  - Mode Descriptions: Clear explanations of what each mode means and when it's used
+
+  MEDIUM-6: Granular Channel Controls
+
+  Code Changes:
+  - Enhanced Channel Cards: Add pause/resume/edit/watch buttons to each channel
+  - Context Menus: Right-click actions for individual channels
+  - TreeView Actions: Per-channel action buttons in the service health tree
+
+  The semanticMapping.ts file I created is the implementation foundation for fixing the terminology
+  confusion - it provides the mapping between old confusing terms and new clear ones. The next step is
+  applying this mapping across the actual UI components, which is what I was in the process of
+  implementing when you asked this question.
+

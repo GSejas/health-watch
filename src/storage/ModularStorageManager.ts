@@ -6,7 +6,7 @@
  */
 
 import * as vscode from 'vscode';
-import { Sample, ChannelState, WatchSession, Outage } from '../types';
+import { Sample, ChannelState, WatchSession, Outage, RawSample } from '../types';
 import {
     StorageManager,
     StorageBackend,
@@ -161,14 +161,14 @@ export class ModularStorageManager implements StorageManager {
 
     // === Sample Storage Implementation ===
 
-    async storeSample(channelId: string, sample: Sample): Promise<void> {
+    async storeSample(channelId: string, sample: RawSample): Promise<void> {
         const backend = this.getBackendForType('samples') as SampleStorage;
-        return backend.storeSample(channelId, sample);
+        return backend.storeSample(channelId, sample as any);
     }
 
-    async storeSamples(samples: Array<{ channelId: string; sample: Sample }>): Promise<void> {
+    async storeSamples(samples: Array<{ channelId: string; sample: RawSample }>): Promise<void> {
         const backend = this.getBackendForType('samples') as SampleStorage;
-        return backend.storeSamples(samples);
+        return backend.storeSamples(samples as any);
     }
 
     async getSamples(channelId: string, startTime: number, endTime: number): Promise<Sample[]> {
@@ -193,9 +193,9 @@ export class ModularStorageManager implements StorageManager {
         return backend.getChannelState(channelId);
     }
 
-    async setChannelState(channelId: string, state: ChannelState): Promise<void> {
+    async setChannelState(channelId: string, state: Partial<ChannelState>): Promise<void> {
         const backend = this.getBackendForType('states') as StateStorage;
-        return backend.setChannelState(channelId, state);
+        return backend.setChannelState(channelId, state as any);
     }
 
     async getAllChannelStates(): Promise<Map<string, ChannelState>> {

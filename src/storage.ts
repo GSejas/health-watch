@@ -46,8 +46,10 @@ export class StorageManager {
     }
 
     static initialize(context: vscode.ExtensionContext): StorageManager {
+        console.log('StorageManager.initialize() called');
         if (!StorageManager.instance) {
             StorageManager.instance = new StorageManager(context);
+            console.log('StorageManager instance created');
         }
         return StorageManager.instance;
     }
@@ -56,6 +58,20 @@ export class StorageManager {
         if (!StorageManager.instance) {
             throw new Error('StorageManager not initialized. Call initialize() first.');
         }
+        return StorageManager.instance;
+    }
+
+    /**
+     * Returns a promise that resolves with the StorageManager instance once it's fully initialized.
+     * This is useful for tests and other code that needs to wait for proper initialization.
+     */
+    static async whenInitialized(): Promise<StorageManager> {
+        // Wait for instance to exist
+        while (!StorageManager.instance) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        // Wait for the instance to be ready
+        await StorageManager.instance.whenReady();
         return StorageManager.instance;
     }
 
@@ -142,16 +158,91 @@ export class StorageManager {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // Save channel states to disk storage
-                await this.diskStorage.saveChannelStates(this.channelStates);
+                // Save channel states to disk storage with validation
+                if (this.channelStates.size > 0) {
+                    // Validate channel states before saving
+                    for (const [id, state] of this.channelStates.entries()) {
+                        if (!state || typeof state !== 'object') {
+                            console.warn(`Invalid channel state for ${id}, skipping:`, state);
+                            continue;
+                        }
+                        
+                        // Trim large sample arrays to prevent massive JSON files
+                        if (state.samples && state.samples.length > 1000) {
+                            state.samples = state.samples.slice(-1000);
+                        }
+                        
+                        // Validate each sample
+                        if (state.samples) {
+                            state.samples = state.samples.filter(sample => {
+                                return sample && 
+                                       typeof sample.timestamp === 'number' && 
+                                       typeof sample.success === 'boolean' &&
+                                       sample.timestamp > 0;
+                            });
+                        }
+                    }
+                    
+                    await this.diskStorage.saveChannelStates(this.channelStates);
+                }
 
-                // Convert Map to object for current watch before saving
+                // Convert Map to object for current watch before saving with validation
                 if (this.currentWatch) {
+                    // Validate current watch data
+                    if (typeof this.currentWatch.id !== 'string' || 
+                        typeof this.currentWatch.startTime !== 'number' ||
+                        this.currentWatch.startTime <= 0) {
+                        throw new Error('Invalid current watch data structure');
+                    }
+                    
+                    let samplesObj: Record<string, any[]> = {};
+                    
+                    if (this.currentWatch.samples) {
+                        if (this.currentWatch.samples instanceof Map) {
+                            // Convert Map to object while validating and trimming
+                            for (const [channelId, samples] of this.currentWatch.samples.entries()) {
+                                if (typeof channelId === 'string' && Array.isArray(samples)) {
+                                    // Trim large sample arrays and validate samples
+                                    const validSamples = samples
+                                        .filter(sample => 
+                                            sample && 
+                                            typeof sample.timestamp === 'number' && 
+                                            typeof sample.success === 'boolean' &&
+                                            sample.timestamp > 0
+                                        )
+                                        .slice(-1000); // Keep last 1000 samples max
+                                    
+                                    if (validSamples.length > 0) {
+                                        samplesObj[channelId] = validSamples;
+                                    }
+                                } else {
+                                    console.warn(`Invalid watch sample data for channel ${channelId}, skipping`);
+                                }
+                            }
+                        } else {
+                            console.warn('Watch samples is not a Map, attempting to convert');
+                            samplesObj = {};
+                        }
+                    }
+                    
                     const currentWatchData = {
-                        ...this.currentWatch,
-                        samples: Object.fromEntries(this.currentWatch.samples.entries())
-                    } as any; // Type assertion for compatibility with storage
-                    await this.diskStorage.setCurrentWatch(currentWatchData);
+                        id: this.currentWatch.id,
+                        startTime: this.currentWatch.startTime,
+                        duration: this.currentWatch.duration,
+                        isActive: this.currentWatch.isActive,
+                        endTime: this.currentWatch.endTime,
+                        samples: samplesObj,
+                        // Include any additional properties while filtering undefined
+                        ...Object.fromEntries(
+                            Object.entries(this.currentWatch)
+                                .filter(([key, value]) => 
+                                    !['id', 'startTime', 'duration', 'isActive', 'endTime', 'samples'].includes(key) &&
+                                    value !== undefined
+                                )
+                        )
+                    };
+                    
+                    await this.diskStorage.setCurrentWatch(currentWatchData as any);
                 } else {
                     await this.diskStorage.setCurrentWatch(null);
                 }
@@ -211,6 +302,15 @@ export class StorageManager {
     }
 
     addSample(channelId: string, sample: Sample): void {
+        // Validate sample before adding
+        if (!sample || 
+            typeof sample.timestamp !== 'number' || 
+            typeof sample.success !== 'boolean' ||
+            sample.timestamp <= 0) {
+            console.warn(`Invalid sample for channel ${channelId}, skipping:`, sample);
+            return;
+        }
+
         const state = this.getChannelState(channelId);
         state.samples.push(sample);
         state.lastSample = sample;
@@ -221,15 +321,21 @@ export class StorageManager {
         }
 
         if (this.currentWatch) {
+            if (!this.currentWatch.samples) this.currentWatch.samples = new Map();
             let watchSamples = this.currentWatch.samples.get(channelId);
             if (!watchSamples) {
                 watchSamples = [];
                 this.currentWatch.samples.set(channelId, watchSamples);
             }
             watchSamples.push(sample);
+            
+            // Trim watch samples to prevent memory/storage issues
+            if (watchSamples.length > maxSamples) {
+                watchSamples.splice(0, watchSamples.length - maxSamples);
+            }
         }
 
-    void this.saveState();
+        void this.saveState();
     }
 
     startWatch(duration: '1h' | '12h' | 'forever' | number): WatchSession {
@@ -246,6 +352,10 @@ export class StorageManager {
         };
 
     this.currentWatch = session;
+    // initialize pause tracking fields
+    (this.currentWatch as any).paused = false;
+    (this.currentWatch as any).pauseTimestamp = undefined;
+    (this.currentWatch as any).pausedAccumMs = 0;
     void this.saveState();
         return session;
     }
@@ -277,6 +387,65 @@ export class StorageManager {
 
     getCurrentWatch(): WatchSession | null {
         return this.currentWatch;
+    }
+
+    /**
+     * Pause the active watch. Subsequent resume will account for paused duration.
+     */
+    pauseWatch(): WatchSession | null {
+        if (!this.currentWatch || !this.currentWatch.isActive) return null;
+        const cw: any = this.currentWatch;
+        if (cw.paused) return cw; // already paused
+        cw.paused = true;
+        cw.pauseTimestamp = Date.now();
+        void this.saveState();
+        return cw;
+    }
+
+    /**
+     * Resume a paused watch and accumulate paused time.
+     */
+    resumeWatch(): WatchSession | null {
+        if (!this.currentWatch || !this.currentWatch.isActive) return null;
+        const cw: any = this.currentWatch;
+        if (!cw.paused) return cw; // not paused
+        const now = Date.now();
+        const pausedFor = now - (cw.pauseTimestamp || now);
+        cw.pausedAccumMs = (cw.pausedAccumMs || 0) + pausedFor;
+        cw.pauseTimestamp = undefined;
+        cw.paused = false;
+        // If endTime exists, push it forward by pausedFor
+        if (cw.endTime) cw.endTime = cw.endTime + pausedFor;
+        void this.saveState();
+        return cw;
+    }
+
+    /**
+     * Extend the current watch duration by given milliseconds or make it forever.
+     * @param extendMs number of milliseconds to extend, or 'forever' to set indefinite
+     */
+    extendWatch(extendMs: number | 'forever'): WatchSession | null {
+        if (!this.currentWatch || !this.currentWatch.isActive) return null;
+        const cw: any = this.currentWatch;
+        if (extendMs === 'forever') {
+            cw.duration = 'forever';
+            cw.endTime = undefined;
+            cw.forever = true;
+        } else {
+            // If endTime present, add extendMs, else compute from start+duration
+            if (cw.endTime) {
+                cw.endTime = cw.endTime + extendMs;
+            } else if (typeof cw.duration === 'number') {
+                cw.duration = cw.duration + extendMs;
+                cw.endTime = cw.startTime + cw.duration + (cw.pausedAccumMs || 0);
+            } else {
+                // previously 'forever' or unknown, convert to numeric duration from now
+                cw.duration = (Date.now() - cw.startTime) + extendMs;
+                cw.endTime = cw.startTime + cw.duration + (cw.pausedAccumMs || 0);
+            }
+        }
+        void this.saveState();
+        return cw;
     }
 
     getWatchHistory(): WatchSession[] {
@@ -353,7 +522,9 @@ export class StorageManager {
         this.outages = this.outages.filter(o => o.channelId !== channelId);
         
         if (this.currentWatch) {
-            this.currentWatch.samples.delete(channelId);
+            if (this.currentWatch && this.currentWatch.samples) {
+                this.currentWatch.samples.delete(channelId);
+            }
         }
         
         this.watchHistory.forEach(watch => {

@@ -20,7 +20,7 @@ describe('Shared React Components', () => {
     });
 
     it('renders loading / empty states for heatmap', () => {
-        render(React.createElement(TimelineHeatmapView, { channels: [], states: {}, heatmapData: {} }));
+        render(React.createElement(TimelineHeatmapView, { channels: [], states: {}, heatmapData: {}, timeRange: '24h' }));
         expect(screen.getByText(/No Heatmap Data/i)).toBeInTheDocument();
     });
 

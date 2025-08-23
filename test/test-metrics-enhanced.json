@@ -1,0 +1,335 @@
+{
+  "lastUpdate": "2025-08-21",
+  "timestamp": 1755809185531,
+  "summary": {
+    "totalFiles": 35,
+    "existingFiles": 16,
+    "completeFiles": 5,
+    "totalTests": 139,
+    "globalCoverage": 0
+  },
+  "modules": {
+    "core": {
+      "name": "Core Business Logic",
+      "description": "Channel state management, configuration, scheduling",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 85,
+      "files": 4,
+      "existing": 1,
+      "complete": 0,
+      "totalTests": 3,
+      "completionPercent": 0,
+      "fileDetails": [
+        {
+          "path": "test/unit/core/channels.test.ts",
+          "status": "SKELETON",
+          "testCount": 3,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/core/runner.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/core/config.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/core/scheduler.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "storage": {
+      "name": "Storage Layer",
+      "description": "Data persistence, multi-backend storage, failover",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 80,
+      "files": 4,
+      "existing": 3,
+      "complete": 2,
+      "totalTests": 32,
+      "completionPercent": 50,
+      "fileDetails": [
+        {
+          "path": "test/unit/storage/MySQLStorage.test.ts",
+          "status": "COMPLETE",
+          "testCount": 11,
+          "lastModified": "2025-08-21"
+        },
+        {
+          "path": "test/unit/storage/ModularStorageManager.test.ts",
+          "status": "COMPLETE",
+          "testCount": 17,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/storage/core.test.ts",
+          "status": "SKELETON",
+          "testCount": 4,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/storage/DiskStorageAdapter.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "react": {
+      "name": "React Components",
+      "description": "Dashboard UI components, timeline views, interactions",
+      "priority": "MEDIUM",
+      "coverage": 0,
+      "target": 75,
+      "files": 6,
+      "existing": 6,
+      "complete": 2,
+      "totalTests": 50,
+      "completionPercent": 33,
+      "fileDetails": [
+        {
+          "path": "test/unit/react/OverviewView.test.tsx",
+          "status": "COMPLETE",
+          "testCount": 20,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/react/TimelineNavigation.test.tsx",
+          "status": "COMPLETE",
+          "testCount": 21,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/react/TimelineHeatmapView.test.tsx",
+          "status": "MINIMAL",
+          "testCount": 2,
+          "lastModified": "2025-08-21"
+        },
+        {
+          "path": "test/unit/react/TimelineSwimlanesView.test.tsx",
+          "status": "MINIMAL",
+          "testCount": 2,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/react/TimelineIncidentsView.test.tsx",
+          "status": "MINIMAL",
+          "testCount": 2,
+          "lastModified": "2025-08-21"
+        },
+        {
+          "path": "test/unit/react/components.test.tsx",
+          "status": "PARTIAL",
+          "testCount": 3,
+          "lastModified": "2025-08-21"
+        }
+      ]
+    },
+    "ui": {
+      "name": "VS Code Integration",
+      "description": "Status bar, tree view, notifications, webview management",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 70,
+      "files": 5,
+      "existing": 1,
+      "complete": 0,
+      "totalTests": 4,
+      "completionPercent": 0,
+      "fileDetails": [
+        {
+          "path": "test/unit/ui/statusBar.test.ts",
+          "status": "SKELETON",
+          "testCount": 4,
+          "lastModified": "2025-08-20"
+        },
+        {
+          "path": "test/unit/ui/treeView.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/ui/dashboard.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/ui/notifications.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/ui/webview.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "probes": {
+      "name": "Probes & Monitoring",
+      "description": "Network probes (HTTPS/TCP/DNS/Script), guards, monitoring logic",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 80,
+      "files": 6,
+      "existing": 2,
+      "complete": 0,
+      "totalTests": 15,
+      "completionPercent": 0,
+      "fileDetails": [
+        {
+          "path": "test/unit/probes.test.ts",
+          "status": "PARTIAL",
+          "testCount": 9,
+          "lastModified": "2025-08-18"
+        },
+        {
+          "path": "test/unit/guards.test.ts",
+          "status": "PARTIAL",
+          "testCount": 6,
+          "lastModified": "2025-08-18"
+        },
+        {
+          "path": "test/unit/probes/https.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/probes/tcp.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/probes/dns.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/probes/script.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "utils": {
+      "name": "Utilities & Data",
+      "description": "Data processing, statistics, report generation",
+      "priority": "MEDIUM",
+      "coverage": 0,
+      "target": 75,
+      "files": 4,
+      "existing": 2,
+      "complete": 0,
+      "totalTests": 9,
+      "completionPercent": 0,
+      "fileDetails": [
+        {
+          "path": "test/unit/dashboardUtils.test.ts",
+          "status": "PARTIAL",
+          "testCount": 8,
+          "lastModified": "2025-08-21"
+        },
+        {
+          "path": "test/unit/outageDuration.test.ts",
+          "status": "MINIMAL",
+          "testCount": 1,
+          "lastModified": "2025-08-19"
+        },
+        {
+          "path": "test/unit/stats.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/report.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "watch": {
+      "name": "Watch Management",
+      "description": "Individual channel watches, global sessions, hierarchy",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 85,
+      "files": 3,
+      "existing": 1,
+      "complete": 1,
+      "totalTests": 26,
+      "completionPercent": 33,
+      "fileDetails": [
+        {
+          "path": "test/unit/watch/individualWatchManager.test.ts",
+          "status": "COMPLETE",
+          "testCount": 26,
+          "lastModified": "2025-08-21"
+        },
+        {
+          "path": "test/unit/watch/watchSession.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/watch/watchCoordination.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    },
+    "coordination": {
+      "name": "Multi-Window Coordination",
+      "description": "Leader election, shared state, multi-window synchronization",
+      "priority": "HIGH",
+      "coverage": 0,
+      "target": 80,
+      "files": 3,
+      "existing": 0,
+      "complete": 0,
+      "totalTests": 0,
+      "completionPercent": 0,
+      "fileDetails": [
+        {
+          "path": "test/unit/coordination/multiWindowCoordination.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/coordination/coordinatedScheduler.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        },
+        {
+          "path": "test/unit/coordination/leaderElection.test.ts",
+          "status": "MISSING",
+          "testCount": 0,
+          "lastModified": null
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "./resources/schema/vscode-healthwatch.schema.json",
+  "defaults": { 
+    "intervalSec": 300, 
+    "timeoutMs": 5000, 
+    "threshold": 3, 
+    "jitterPct": 10 
+  },
+  "channels": [
+    {
+      "id": "internet-basic",
+      "name": "Internet Connectivity",
+      "type": "https",
+      "url": "https://1.1.1.1",
+      "intervalSec": 120,
+      "timeoutMs": 3000,
+      "threshold": 2,
+      "icon": "$(server)",
+      "expect": {
+        "statusRange": [200, 499]
+      }
+    }
+  ]
+}

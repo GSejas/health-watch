@@ -1,11 +1,19 @@
 {
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
-		"rootDir": ".",
-		"outDir": "out",
-		"strict": false,
-		"noImplicitAny": false,
-		"skipLibCheck": true
+			"module": "commonjs",
+			"target": "es2020",
+			"outDir": "out/test",
+			"rootDir": ".",
+			"strict": true,
+			"esModuleInterop": true,
+			"skipLibCheck": true,
+			"jsx": "react-jsx",
+			"lib": ["es2020", "dom"],
+			"types": [
+				"mocha",
+				"node"
+			]
 	},
 	"include": [
 		"src/**/*",

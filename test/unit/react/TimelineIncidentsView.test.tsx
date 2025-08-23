@@ -14,8 +14,8 @@ describe('TimelineIncidentsView', () => {
     it('filters incidents by severity and channel', () => {
         const c1 = { id: 'c1', name: 'Channel 1' };
         const c2 = { id: 'c2', name: 'Channel 2' };
-        const incident = { id: 'i1', channel: 'c1', severity: 'critical', timestamp: Date.now(), title: 'Down', description: 'Service is down', impact: 'High', duration: 30, type: 'outage' };
-        render(React.createElement(TimelineIncidentsView, { channels: [c1, c2], states: {}, incidents: [incident] }));
+    const incident: any = { id: 'i1', channel: 'c1', severity: 'critical', timestamp: Date.now(), title: 'Down', description: 'Service is down', impact: 'High', duration: 30, type: 'outage' };
+    render(React.createElement(TimelineIncidentsView, { channels: [c1, c2], states: {}, incidents: [incident] } as any));
         // Should show the incident initially (match the title element specifically)
         expect(screen.getByText(/Down/i, { selector: '.incident-title' })).toBeInTheDocument();
     // Filter by severity -> choose a severity that hides the incident (scope to the filter-group)

@@ -138,9 +138,8 @@ export class ReportGenerator {
                 const start = new Date(outage.startTime).toLocaleTimeString();
                 const end = outage.endTime ? new Date(outage.endTime).toLocaleTimeString() : 'Ongoing';
                 const duration = outage.duration ? formatDuration(outage.duration) : 'N/A';
-                const reason = outage.reason.length > 30 
-                    ? outage.reason.substring(0, 27) + '...'
-                    : outage.reason;
+                const reasonText = (outage.reason || 'Unknown');
+                const reason = reasonText.length > 30 ? reasonText.substring(0, 27) + '...' : reasonText;
                 
                 lines.push(`| ${outage.channelId} | ${start} | ${end} | ${duration} | ${reason} |`);
             }
@@ -363,7 +362,7 @@ export class ReportGenerator {
             recommendations: data.recommendations,
             sloAnalysis: data.sloBreaches,
             rawData: {
-                sessionSamples: Object.fromEntries(data.session.samples.entries())
+                sessionSamples: data.session.samples ? Object.fromEntries(data.session.samples.entries()) : {}
             }
         };
 
@@ -371,7 +370,7 @@ export class ReportGenerator {
     }
 
     private getSamplesForChannel(channelId: string, session: WatchSession): Sample[] {
-        return session.samples.get(channelId) || [];
+    return (session.samples && session.samples.get(channelId)) || [];
     }
 
     private createStateSegments(samples: Sample[], startTime: number, endTime: number) {

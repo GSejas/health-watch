@@ -3,6 +3,7 @@ import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
 import { formatDuration } from './dashboardUtils';
 import { Scheduler, FishyCondition } from '../runner/scheduler';
+import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
 
 interface SnoozeState {
     channelId: string;
@@ -68,8 +69,8 @@ export class NotificationManager {
                 this.handleMultiChannelOutage(offlineChannels);
             } else {
                 this.showNotificationWithSnooze(
-                    `🔴 ${channelName} is now OFFLINE`,
-                    'Health Watch detected connectivity issues',
+                    `${TerminologyMap.ServiceStates.offline.icon} ${channelName} is now ${TerminologyMap.ServiceStates.offline.new.toUpperCase()}`,
+                    `Health Watch detected ${TerminologyMap.DataEvents.incident.new.toLowerCase()}`,
                     'error',
                     channelId,
                     'outage'
@@ -77,8 +78,8 @@ export class NotificationManager {
             }
         } else if (oldState === 'offline' && newState === 'online') {
             this.showNotification(
-                `🟢 ${channelName} is back ONLINE`,
-                'Connectivity has been restored',
+                `${TerminologyMap.ServiceStates.online.icon} ${channelName} is back ${TerminologyMap.ServiceStates.online.new.toUpperCase()}`,
+                `${TerminologyMap.UILabels.serviceRecovered}`,
                 'info'
             );
         }
@@ -94,7 +95,7 @@ export class NotificationManager {
         const channelName = channel?.name || channelId;
 
         this.showNotification(
-            `⚠️ Outage detected: ${channelName}`,
+            `⚠️ ${TerminologyMap.DataEvents.outage.new} detected: ${channelName}`,
             `Reason: ${reason}`,
             'warning'
         );
@@ -111,7 +112,7 @@ export class NotificationManager {
         const durationStr = formatDuration(duration);
 
         this.showNotification(
-            `✅ Outage resolved: ${channelName}`,
+            `✅ ${TerminologyMap.DataEvents.outage.new} resolved: ${channelName}`,
             `Duration: ${durationStr}`,
             'info'
         );
@@ -131,7 +132,7 @@ export class NotificationManager {
         const channel = channels.find(c => c.id === channelId);
         const channelName = channel?.name || channelId;
 
-        const message = `Connectivity looks unstable on ${channelName}: ${condition.description}. Start a Watch?`;
+        const message = `${TerminologyMap.UILabels.monitoringSuggestion} for ${channelName}: ${condition.description}. ${TerminologyMap.UserActions.startWatch.buttonText}?`;
         
         const choice = await vscode.window.showWarningMessage(
             message,
@@ -196,7 +197,7 @@ export class NotificationManager {
                 : formatDuration(duration);
             
             vscode.window.showInformationMessage(
-                `🔍 Health Watch started for ${durationStr}`
+                `🔍 ${TerminologyMap.MonitoringModes.intensive.new} started for ${durationStr}`
             );
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to start watch: ${error}`);
@@ -474,17 +475,17 @@ export class NotificationManager {
             return;
         }
 
-        const message = `🚨 Multiple channels offline (${offlineChannels.length}). Network-wide issue detected.`;
+        const message = `🚨 Multiple services ${TerminologyMap.ServiceStates.offline.new.toLowerCase()} (${offlineChannels.length}). Network-wide issue detected.`;
         
         const choice = await vscode.window.showErrorMessage(
             message,
             { modal: false },
-            'Start Watch',
+            TerminologyMap.UserActions.startWatch.buttonText,
             'Snooze All',
             'View Details'
         );
 
-        if (choice === 'Start Watch') {
+        if (choice === TerminologyMap.UserActions.startWatch.buttonText) {
             await this.startWatch('1h'); // Default to 1 hour for multi-channel issues
         } else if (choice === 'Snooze All') {
             await this.showSnoozeDialog('*', 'multi-channel');
@@ -569,7 +570,7 @@ export class NotificationManager {
         }
 
         const duration = formatDuration(watch.endTime - watch.startTime);
-        const message = `🔍 Health Watch completed (${duration})`;
+        const message = `🔍 ${TerminologyMap.MonitoringModes.intensive.new} completed (${duration})`;
         
         const choice = await vscode.window.showInformationMessage(
             message,

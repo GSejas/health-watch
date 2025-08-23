@@ -4,7 +4,18 @@ export interface Sample {
     latencyMs?: number;
     error?: string;
     details?: any;
+
+    // legacy aliases (accepted in raw input but not required on canonical samples)
+    t?: number;
+    ok?: boolean;
 }
+
+// RawSample represents shapes produced by older tests/fixtures (short fields like `t`/`ok`).
+// Storage entry points accept RawSample and must normalize to canonical `Sample`.
+export type RawSample = Partial<Sample> & {
+    t?: number;
+    ok?: boolean;
+};
 
 export interface ProbeResult {
     success: boolean;
@@ -39,18 +50,46 @@ export interface ChannelInfo {
     nextProbe?: number;
     isPaused: boolean;
     isRunning?: boolean;
+    // Individual watch information
+    hasIndividualWatch?: boolean;
+    individualWatchType?: 'global' | 'individual' | 'baseline';
+    individualWatchExpiry?: number;
 }
 
 export interface WatchSession {
     id: string;
     startTime: number;
     endTime?: number;
-    duration: '1h' | '12h' | 'forever' | number;
-    samples: Map<string, Sample[]>;
+    // duration may be a preset, numeric ms, or 'forever'
+    duration?: '1h' | '12h' | 'forever' | number;
+    samples?: Map<string, Sample[]>;
     isActive: boolean;
     // Optional compatibility fields
     durationSetting?: string | number | null;
     sampleCount?: number;
+}
+
+export interface IndividualChannelWatch {
+    id: string;
+    channelId: string;
+    startTime: number;
+    endTime?: number;
+    duration?: '1h' | '12h' | 'forever' | number;
+    isActive: boolean;
+    // Watch-specific settings that override channel defaults
+    intervalSec?: number;
+    timeoutMs?: number;
+    // Metrics
+    sampleCount?: number;
+}
+
+export interface WatchManager {
+    globalWatch?: WatchSession;
+    individualWatches: Map<string, IndividualChannelWatch>; // channelId -> watch
+    // Helper methods
+    isChannelWatched(channelId: string): boolean;
+    getEffectiveWatch(channelId: string): WatchSession | IndividualChannelWatch | null;
+    getActiveWatchType(channelId: string): 'global' | 'individual' | 'baseline';
 }
 
 export interface Outage {
@@ -59,7 +98,8 @@ export interface Outage {
     startTime: number;          // Legacy: when threshold crossed (for compatibility)
     endTime?: number;
     duration?: number;          // Legacy: detected duration (for compatibility)
-    reason: string;
+    // Reason is optional for some test fixtures which omit it
+    reason?: string;
     recoveryTime?: number;
     
     // Enhanced tracking (new fields)

@@ -60,10 +60,10 @@ VS Code user-level (settings.json) recommended keys:
   "https://clients3.google.com/generate_204",
   "https://cloudflare.com/generate_204"
 ]
-- `healthWatch.internet.intervalSec` (number) — default: 60
+- `healthWatch.internet.intervalSec` (number) — default: 15
 - `healthWatch.internet.timeoutMs` (number) — default: 3000
-- `healthWatch.internet.failureThreshold` (number) — default: 2
-- `healthWatch.statusBar.internet.scope` — `user` | `workspace` | `both` (default `user`)
+- `healthWatch.internet.failureThreshold` (number) — default: 3
+- `healthWatch.statusBar.internet.scope` — `user` | `workspace` | `both` (default `user`) # not sure how this would work with the multi window management
 
 Workspace (.healthwatch.json) override example:
 ```

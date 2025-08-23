@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { EventEmitter } from 'events';
 import { Sample, ChannelState, WatchSession, Outage } from './types';
 
 /**
@@ -73,6 +74,52 @@ export class DiskStorageManager {
         vscode.window.showErrorMessage(`Health Watch: Storage directory creation failed. Extension may not function properly.`);
     }
 
+    private async ensureStorageDirectoryAsync(): Promise<void> {
+        const maxRetries = 3;
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Check if directory exists
+                try {
+                    await fs.promises.access(this.storageDir, fs.constants.F_OK);
+                } catch {
+                    // Directory doesn't exist, create it
+                    await fs.promises.mkdir(this.storageDir, { recursive: true });
+                }
+                
+                // Verify directory is writable
+                const testFile = path.join(this.storageDir, `.write-test-${Date.now()}.${Math.random().toString(36).substring(2)}`);
+                try {
+                    await fs.promises.writeFile(testFile, 'test', { encoding: 'utf8' });
+                    // Try to unlink, but don't fail if it's already gone or permission denied
+                    try {
+                        await fs.promises.unlink(testFile);
+                    } catch (unlinkError) {
+                        // If unlink fails, at least we know we can write
+                        console.warn(`Could not cleanup test file ${testFile}:`, unlinkError);
+                    }
+                } catch (writeError) {
+                    throw new Error(`Directory is not writable: ${writeError}`);
+                }
+                
+                return; // Success
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Failed to create/verify storage directory async (attempt ${attempt}/${maxRetries}):`, error);
+                
+                if (attempt < maxRetries) {
+                    // Exponential backoff
+                    const delayMs = 100 * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+            }
+        }
+        
+        // All retries failed - throw error since this is called from async context
+        throw new Error(`CRITICAL: Async storage directory creation failed after ${maxRetries} attempts: ${lastError?.message}`);
+    }
+
     private getFilePath(filename: string): string {
         return path.join(this.storageDir, filename);
     }
@@ -84,22 +131,70 @@ export class DiskStorageManager {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const filePath = this.getFilePath(filename);
-                if (fs.existsSync(filePath)) {
-                    const data = fs.readFileSync(filePath, 'utf8');
-                    
-                    // Validate JSON before parsing
-                    if (data.trim().length === 0) {
-                        console.warn(`Empty file detected: ${filename}, using default value`);
-                        return defaultValue;
-                    }
-                    
-                    return JSON.parse(data);
+                
+                // Check if file exists using async method
+                try {
+                    await fs.promises.access(filePath, fs.constants.F_OK);
+                } catch {
+                    // File doesn't exist, return default
+                    return defaultValue;
                 }
-                // File doesn't exist, return default
-                return defaultValue;
+                
+                // Read file content asynchronously
+                const data = await fs.promises.readFile(filePath, 'utf8');
+                
+                // Validate JSON before parsing
+                if (!data || data.trim().length === 0) {
+                    console.warn(`Empty file detected: ${filename}, using default value`);
+                    return defaultValue;
+                }
+                
+                // Check for common JSON corruption patterns
+                if (data.includes('\0') || data.includes('\uFFFD')) {
+                    throw new Error('File contains null bytes or replacement characters - likely corrupted');
+                }
+                
+                // Check for truncated JSON by looking for unterminated strings or objects
+                const trimmedData = data.trim();
+                if (!trimmedData.endsWith('}') && !trimmedData.endsWith(']') && !trimmedData.endsWith('"') && !trimmedData.endsWith('null') && !trimmedData.endsWith('false') && !trimmedData.endsWith('true') && !(/\d$/.test(trimmedData))) {
+                    throw new Error('File appears to be truncated - does not end with valid JSON');
+                }
+                
+                let parsed: T;
+                try {
+                    parsed = JSON.parse(data);
+                } catch (parseError) {
+                    // If JSON parsing fails, try to extract position information
+                    const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+                    if (errorMessage.includes('position')) {
+                        const positionMatch = errorMessage.match(/position (\d+)/);
+                        if (positionMatch) {
+                            const position = parseInt(positionMatch[1]);
+                            const context = data.substring(Math.max(0, position - 50), position + 50);
+                            throw new Error(`JSON parse error at position ${position}: ${errorMessage}. Context: "${context}"`);
+                        }
+                    }
+                    throw new Error(`JSON parse error: ${errorMessage}`);
+                }
+                
+                return parsed;
+                
             } catch (error) {
                 lastError = error as Error;
                 console.error(`Failed to read ${filename} (attempt ${attempt}/${maxRetries}):`, error);
+                
+                // For corrupted JSON, try to backup the file for investigation
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes('JSON') || errorMessage.includes('truncated') || errorMessage.includes('corrupted')) {
+                    try {
+                        const filePath = this.getFilePath(filename);
+                        const backupPath = `${filePath}.corrupt.${Date.now()}`;
+                        await fs.promises.copyFile(filePath, backupPath);
+                        console.log(`Corrupt file backed up to: ${backupPath}`);
+                    } catch (backupError) {
+                        console.warn(`Failed to backup corrupt file ${filename}:`, backupError);
+                    }
+                }
                 
                 if (attempt < maxRetries) {
                     // Exponential backoff: 100ms, 200ms, 400ms
@@ -121,32 +216,118 @@ export class DiskStorageManager {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const filePath = this.getFilePath(filename);
-                const tempFilePath = `${filePath}.tmp`;
+                const tempFilePath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2)}`;
                 
-                // Write to temporary file first for atomic operation
-                const jsonString = JSON.stringify(data, null, 2);
-                fs.writeFileSync(tempFilePath, jsonString, 'utf8');
+                // Ensure storage directory exists before writing
+                await this.ensureStorageDirectoryAsync();
+                
+                // Serialize data to JSON with error checking
+                let jsonString: string;
+                try {
+                    // Use a replacer function to handle circular references and non-serializable data
+                    jsonString = JSON.stringify(data, (key, value) => {
+                        // Handle circular references
+                        if (typeof value === 'object' && value !== null) {
+                            // Check for common problematic patterns
+                            if (value.constructor && value.constructor.name === 'AbortController') {
+                                return undefined;
+                            }
+                            if (value instanceof EventTarget || value instanceof EventEmitter) {
+                                return undefined;
+                            }
+                            if (typeof value === 'function') {
+                                return undefined;
+                            }
+                        }
+                        return value;
+                    }, 2);
+                    
+                    // Enhanced validation
+                    if (!jsonString || jsonString.length === 0) {
+                        throw new Error('JSON serialization produced empty result');
+                    }
+                    if (jsonString === 'undefined') {
+                        throw new Error('JSON serialization produced undefined result');
+                    }
+                    // Note: 'null' is a valid JSON value, so we allow it
+                    if (jsonString.length > 50 * 1024 * 1024) { // 50MB limit
+                        throw new Error(`JSON serialization produced excessive size: ${jsonString.length} bytes`);
+                    }
+                } catch (serializeError) {
+                    // Log the problematic data for debugging
+                    console.error('JSON serialization failed for data:', {
+                        dataType: typeof data,
+                        dataConstructor: data?.constructor?.name,
+                        dataKeys: data && typeof data === 'object' ? Object.keys(data) : 'n/a',
+                        error: serializeError
+                    });
+                    throw new Error(`JSON serialization failed: ${serializeError}`);
+                }
+                
+                // Write to temporary file first for atomic operation (async)
+                await fs.promises.writeFile(tempFilePath, jsonString, { encoding: 'utf8', mode: 0o644 });
                 
                 // Verify the temporary file was written correctly
-                const verifyData = fs.readFileSync(tempFilePath, 'utf8');
-                JSON.parse(verifyData); // Ensure valid JSON
+                try {
+                    const verifyData = await fs.promises.readFile(tempFilePath, 'utf8');
+                    JSON.parse(verifyData); // Ensure valid JSON can be parsed
+                    
+                    // Verify content length matches expected
+                    if (verifyData.length !== jsonString.length) {
+                        throw new Error('File content length mismatch after write');
+                    }
+                } catch (verifyError) {
+                    throw new Error(`Verification failed: ${verifyError}`);
+                }
                 
-                // Atomic move to final location
-                fs.renameSync(tempFilePath, filePath);
+                // Atomic move to final location (async)
+                try {
+                    // On Windows, add small delay to let file handles settle
+                    if (process.platform === 'win32') {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                    await fs.promises.rename(tempFilePath, filePath);
+                } catch (renameError) {
+                    // Windows EPERM workaround: try copy + delete approach
+                    if ((renameError as any).code === 'EPERM' && process.platform === 'win32') {
+                        try {
+                            // Copy temp file to final location
+                            await fs.promises.copyFile(tempFilePath, filePath);
+                            // Delete temp file (ignore errors)
+                            try {
+                                await fs.promises.unlink(tempFilePath);
+                            } catch (unlinkError) {
+                                console.warn(`Could not cleanup temp file ${tempFilePath}:`, unlinkError);
+                            }
+                        } catch (copyError) {
+                            throw new Error(`Windows EPERM workaround failed: ${copyError}`);
+                        }
+                    } else {
+                        throw renameError;
+                    }
+                }
                 return; // Success
                 
             } catch (error) {
                 lastError = error as Error;
                 console.error(`Failed to write ${filename} (attempt ${attempt}/${maxRetries}):`, error);
                 
-                // Clean up temporary file if it exists
+                // Clean up temporary file if it exists (async, non-blocking)
                 try {
-                    const tempFilePath = `${this.getFilePath(filename)}.tmp`;
-                    if (fs.existsSync(tempFilePath)) {
-                        fs.unlinkSync(tempFilePath);
+                    const tempPattern = `${this.getFilePath(filename)}.tmp`;
+                    const files = await fs.promises.readdir(this.storageDir);
+                    const tempFiles = files.filter(f => f.startsWith(path.basename(tempPattern)));
+                    
+                    for (const tempFile of tempFiles) {
+                        try {
+                            const tempPath = path.join(this.storageDir, tempFile);
+                            await fs.promises.unlink(tempPath);
+                        } catch (unlinkError) {
+                            // Ignore individual cleanup failures
+                        }
                     }
                 } catch (cleanupError) {
-                    console.warn(`Failed to cleanup temp file for ${filename}:`, cleanupError);
+                    console.warn(`Failed to cleanup temp files for ${filename}:`, cleanupError);
                 }
                 
                 if (attempt < maxRetries) {
@@ -189,7 +370,17 @@ export class DiskStorageManager {
     }
 
     async setCurrentWatch(watch: WatchSession | null): Promise<void> {
-        await this.writeJsonFile(this.CURRENT_WATCH_FILE, watch);
+        try {
+            await this.writeJsonFile(this.CURRENT_WATCH_FILE, watch);
+        } catch (error) {
+            console.error('Failed to set current watch:', {
+                watchData: watch,
+                watchType: typeof watch,
+                watchKeys: watch && typeof watch === 'object' ? Object.keys(watch) : 'n/a',
+                error
+            });
+            throw error;
+        }
     }
 
     // Watch History Management

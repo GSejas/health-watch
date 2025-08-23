@@ -61,6 +61,7 @@ import { Scheduler } from './runner/scheduler';
 import { StorageManager } from './storage';
 import { DataExporter } from './export';
 import { ReportGenerator } from './report';
+import { IndividualWatchManager } from './watch/individualWatchManager';
 
 export interface HealthWatchAPI {
     registerChannel(def: ChannelDefinition): vscode.Disposable;
@@ -87,6 +88,7 @@ export class HealthWatchAPIImpl implements HealthWatchAPI {
     private eventEmitter = new EventEmitter();
     private dynamicChannels = new Map<string, ChannelDefinition>();
     private lastReportPath: string | null = null;
+    public individualWatchManager?: IndividualWatchManager;
 
     constructor(scheduler: Scheduler | null) {
         this.scheduler = scheduler as any;

@@ -112,12 +112,22 @@ export function formatWatchDuration(watch: any): string {
 }
 
 /**
+ * Formats remaining milliseconds into a concise string or returns 'Forever' when null.
+ * @param remainingMs - Remaining milliseconds or null for indefinite
+ */
+export function formatRemaining(remainingMs: number | null | undefined): string {
+    if (remainingMs === null || remainingMs === undefined) return 'Forever';
+    if (remainingMs <= 0) return 'Ended';
+    return formatDuration(remainingMs) + ' remaining';
+}
+
+/**
  * Calculates percentage with safe division by zero handling
  * @param numerator - The numerator value
  * @param denominator - The denominator value
  * @param decimals - Number of decimal places (default: 1)
  * @returns Percentage as number, 0 if denominator is 0
- */
+ */ 
 export function calculatePercentage(numerator: number, denominator: number, decimals: number = 1): number {
     if (denominator === 0) return 0;
     return Number(((numerator / denominator) * 100).toFixed(decimals));

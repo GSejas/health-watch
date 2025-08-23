@@ -3,6 +3,7 @@ import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
 import { Scheduler } from '../runner/scheduler';
 import { ChannelInfo } from '../types';
+import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
 
 export class ChannelTreeItem extends vscode.TreeItem {
     constructor(
@@ -46,7 +47,7 @@ export class ChannelTreeItem extends vscode.TreeItem {
         }
         
         if (this.channelInfo.isPaused) {
-            lines.push('Status: PAUSED');
+            lines.push(`Status: ${TerminologyMap.UserActions.pauseChannel.new.toUpperCase()}`);
         }
         
         return lines.join('\n');
@@ -57,12 +58,13 @@ export class ChannelTreeItem extends vscode.TreeItem {
         
         // Enhanced state display with emojis
         if (this.channelInfo.isPaused) {
-            parts.push('⏸️ PAUSED');
+            parts.push(`⏸️ ${TerminologyMap.UserActions.pauseChannel.new.toUpperCase()}`);
         } else if (this.channelInfo.isRunning) {
             parts.push('🔄 RUNNING');
         } else {
-            const stateEmoji = this.channelInfo.state === 'online' ? '🟢' :
-                             this.channelInfo.state === 'offline' ? '🔴' : '🟡';
+            const stateEmoji = this.channelInfo.state === 'online' ? TerminologyMap.ServiceStates.online.icon :
+                             this.channelInfo.state === 'offline' ? TerminologyMap.ServiceStates.offline.icon : 
+                             TerminologyMap.ServiceStates.unknown.icon;
             parts.push(stateEmoji);
         }
         
@@ -223,7 +225,7 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
     async runChannel(channelId: string): Promise<void> {
         try {
             await this.scheduler.runChannelNow(channelId);
-            vscode.window.showInformationMessage(`Channel '${channelId}' probe completed`);
+            vscode.window.showInformationMessage(`${TerminologyMap.DataEvents.sample.new} for '${channelId}' completed`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run channel '${channelId}': ${error}`);
         }
@@ -232,13 +234,13 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
     pauseChannel(channelId: string): void {
         this.scheduler.pauseChannel(channelId);
         this.refresh();
-        vscode.window.showInformationMessage(`Channel '${channelId}' paused`);
+        vscode.window.showInformationMessage(`${TerminologyMap.UserActions.pauseChannel.description.replace('this service', `'${channelId}'`)}`);
     }
 
     resumeChannel(channelId: string): void {
         this.scheduler.resumeChannel(channelId);
         this.refresh();
-        vscode.window.showInformationMessage(`Channel '${channelId}' resumed`);
+        vscode.window.showInformationMessage(`Resumed monitoring '${channelId}'`);
     }
 
     stopChannel(channelId: string): void {

@@ -35,7 +35,8 @@
     "diagnostics"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:healthWatch.showChannelDetails"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -49,9 +50,9 @@
         },
         "healthWatch.defaults.intervalSec": {
           "type": "number",
-          "default": 60,
+          "default": 15,
           "minimum": 10,
-          "description": "Default probe interval in seconds"
+          "description": "Default probe interval in seconds (optimized for internet connectivity detection)"
         },
         "healthWatch.defaults.timeoutMs": {
           "type": "number",
@@ -215,6 +216,23 @@
           "minimum": 1,
           "maximum": 30,
           "description": "Number of days to spread demo incidents across"
+        },
+        "healthWatch.coordination.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable multi-window coordination to avoid duplicate monitoring"
+        },
+        "healthWatch.coordination.heartbeatIntervalMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "description": "Heartbeat interval for leader election in milliseconds"
+        },
+        "healthWatch.coordination.leaderTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 5000,
+          "description": "Timeout for detecting stale leaders in milliseconds"
         }
       }
     },
@@ -228,6 +246,18 @@
       {
         "command": "healthWatch.stopWatch",
         "title": "Stop Watch",
+        "category": "Health Watch"
+      },
+      {
+        "command": "healthWatch.startChannelWatch",
+        "title": "Start Individual Channel Watch",
+        "icon": "$(eye)",
+        "category": "Health Watch"
+      },
+      {
+        "command": "healthWatch.stopChannelWatch",
+        "title": "Stop Individual Channel Watch",
+        "icon": "$(eye-closed)",
         "category": "Health Watch"
       },
       {
@@ -335,6 +365,18 @@
         "command": "healthWatch.clearAllSnoozes",
         "title": "Clear All Snoozes",
         "category": "Health Watch"
+      },
+      {
+        "command": "healthWatch.toggleDebugMode",
+        "title": "Toggle Debug Mode",
+        "category": "Health Watch",
+        "icon": "$(debug)"
+      },
+      {
+        "command": "healthWatch.runInternetCheck",
+        "title": "Run Internet Check Now",
+        "category": "Health Watch",
+        "icon": "$(globe)"
       }
     ],
     "viewsContainers": {
@@ -420,6 +462,16 @@
           "group": "inline"
         },
         {
+          "command": "healthWatch.startChannelWatch",
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-.*-baseline-.*/",
+          "group": "watch"
+        },
+        {
+          "command": "healthWatch.stopChannelWatch",
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-.*-individualwatch-.*/",
+          "group": "watch"
+        },
+        {
           "command": "healthWatch.toggleChannelEnabled",
           "when": "view == healthWatchChannels && viewItem =~ /^channel-.*/",
           "group": "management"
@@ -454,13 +506,13 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test",
+  "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=./out/test/test/e2e",
     "test:unit": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "test:status": "node test/coverage-tracker.js",
-    "test:e2e": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=./out/test/e2e",
+    "test:e2e": "node ./out/test/test/e2e/runTest.js",
     "test:all": "npm run test:unit && npm run test:e2e",
     "vscode:package": "vsce package",
     "vscode:publish": "vsce publish"
@@ -489,6 +541,7 @@
     "postcss": "^8.5.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^4.1.12",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",

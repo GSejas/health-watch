@@ -63,14 +63,45 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
     const handleFiltersChange = (newFilters: FilterOptions) => {
         setFilters(newFilters);
         
-        // Convert our time format back to backend format
-        const backendTimeRange = newFilters.timeRange.replace('d', 'D').toUpperCase();
-        
+        // No format conversion needed - dashboard now handles FilterPanel format directly
         // Communicate back to parent through webview messaging
         if (typeof window !== 'undefined' && (window as any).vscode) {
             (window as any).vscode.postMessage({
                 command: 'changeTimeRange',
-                timeRange: backendTimeRange
+                range: newFilters.timeRange  // Use the FilterPanel format directly
+            });
+        }
+    };
+
+    // Handle click on heatmap cell to zoom into that time period
+    const handleCellClick = (channelId: string, hourIndex: number) => {
+        // Calculate the hour this cell represents (assuming 24 hours × 7 days = 168 cells)
+        const hoursPerDay = 24;
+        const dayIndex = Math.floor(hourIndex / hoursPerDay);
+        const hourOfDay = hourIndex % hoursPerDay;
+        
+        // Create date for this specific hour
+        const clickDate = new Date();
+        clickDate.setDate(clickDate.getDate() - (6 - dayIndex)); // Last 7 days, so subtract from current
+        clickDate.setHours(hourOfDay, 0, 0, 0);
+        
+        // For intuitive zooming, zoom to a 1-hour window centered on the clicked cell
+        const zoomStart = new Date(clickDate.getTime() - 30 * 60 * 1000); // 30 min before
+        const zoomEnd = new Date(clickDate.getTime() + 30 * 60 * 1000);   // 30 min after
+        
+        // Send zoom command to parent
+        if (typeof window !== 'undefined' && (window as any).vscode) {
+            (window as any).vscode.postMessage({
+                command: 'zoomToTimeRange',
+                channelId,
+                startTime: zoomStart.toISOString(),
+                endTime: zoomEnd.toISOString(),
+                zoomLevel: '1h',
+                context: {
+                    originalHour: hourOfDay,
+                    dayIndex,
+                    availability: 'cell-data-here' // Could pass actual cell data
+                }
             });
         }
     };
@@ -183,9 +214,10 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
                                     {channelHeatmap.map((hourData, index) => (
                                         <div
                                             key={index}
-                                            className="heatmap-cell"
+                                            className="heatmap-cell clickable-cell"
                                             style={{ backgroundColor: getHeatmapColor(hourData.availability) }}
-                                            title={getHeatmapTooltip(channel.name || channel.id, hourData, index)}
+                                            title={`${getHeatmapTooltip(channel.name || channel.id, hourData, index)} - Click to zoom in`}
+                                            onClick={() => handleCellClick(channel.id, index)}
                                         />
                                     ))}
                                 </div>
@@ -322,6 +354,22 @@ const heatmapStyles = `
     .heatmap-cell:hover {
         transform: scale(1.1);
         z-index: 10;
+    }
+
+    .clickable-cell {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .clickable-cell:hover {
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        border: 2px solid var(--vscode-focusBorder);
+    }
+
+    .clickable-cell:active {
+        transform: scale(1.05);
+        transition: transform 0.1s ease;
     }
 
     .hour-labels {

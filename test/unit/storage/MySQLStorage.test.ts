@@ -84,7 +84,7 @@ describe('MySQLStorage', () => {
 
     describe('sample storage', () => {
         it('should store a single sample', async () => {
-            const sample = {
+            const sample: any = {
                 t: Date.now(),
                 ok: true,
                 latencyMs: 100,
@@ -102,7 +102,7 @@ describe('MySQLStorage', () => {
         });
 
         it('should store multiple samples in batch', async () => {
-            const samples = [
+            const samples: any = [
                 { channelId: 'ch1', sample: { t: 1000, ok: true } },
                 { channelId: 'ch2', sample: { t: 2000, ok: false, reason: 'timeout' as const } }
             ];
@@ -140,7 +140,7 @@ describe('MySQLStorage', () => {
 
     describe('channel state management', () => {
         it('should set and get channel state', async () => {
-            const state = {
+            const state: any = {
                 state: 'online' as const,
                 consecutiveFailures: 0,
                 totalChecks: 10,
@@ -149,7 +149,7 @@ describe('MySQLStorage', () => {
 
             // Mock set
             mockConnection.execute.mockResolvedValue([{ affectedRows: 1 }, {}]);
-            await storage.setChannelState('test-channel', state);
+            await storage.setChannelState('test-channel', state as any);
 
             // Mock get
             const mockRow = {

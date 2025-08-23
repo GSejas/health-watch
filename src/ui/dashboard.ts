@@ -111,6 +111,25 @@ export class DashboardManager {
                 case 'startWatch':
                     this.scheduler.emit('startWatch', { duration: message.duration });
                     break;
+                case 'pauseWatch':
+                    this.storageManager.pauseWatch();
+                    // Ask scheduler to pause scheduling while watch is paused
+                    try { this.scheduler.pauseForWatch(); } catch {}
+                    // send updated watch state to webview
+                    this.panel?.webview.postMessage({ command: 'watchUpdated', payload: this.storageManager.getCurrentWatch() });
+                    break;
+                case 'resumeWatch':
+                    this.storageManager.resumeWatch();
+                    try { this.scheduler.resumeForWatch(); } catch {}
+                    this.panel?.webview.postMessage({ command: 'watchUpdated', payload: this.storageManager.getCurrentWatch() });
+                    break;
+                case 'extendWatch':
+                    // payload: { extendMs }
+                    if (message.payload && message.payload.extendMs !== undefined) {
+                        this.storageManager.extendWatch(message.payload.extendMs);
+                        this.panel?.webview.postMessage({ command: 'watchUpdated', payload: this.storageManager.getCurrentWatch() });
+                    }
+                    break;
                 case 'changeView':
                     this.currentState.activeView = message.viewType;
                     this.currentState.activeSubView = message.subViewType;
@@ -119,6 +138,31 @@ export class DashboardManager {
                 case 'changeTimeRange':
                     this.currentState.timeRange = message.range;
                     await this.updateDashboard({ preserveState: true });
+                    break;
+                case 'zoomToTimeRange':
+                    // Handle heatmap cell zoom - switch to detailed view for specific time range
+                    this.currentState.timeRange = '1h'; // Zoom to 1-hour view
+                    this.currentState.activeView = 'timeline-incidents'; // Switch to detailed incidents view
+                    this.currentState.selectedChannel = message.channelId; // Focus on clicked channel
+                    
+                    // Store zoom context for the view
+                    const zoomContext = {
+                        startTime: message.startTime,
+                        endTime: message.endTime,
+                        originalContext: message.context
+                    };
+                    
+                    await this.updateDashboard({ 
+                        preserveState: false, // Force full refresh for view change
+                        additionalOptions: { zoomContext }
+                    });
+                    
+                    // Send confirmation back to UI
+                    this.panel?.webview.postMessage({
+                        command: 'zoomCompleted',
+                        channelId: message.channelId,
+                        timeRange: this.currentState.timeRange
+                    });
                     break;
                 case 'filterIncidents':
                     await this.updateDashboard({ 
@@ -203,6 +247,48 @@ export class DashboardManager {
                     try {
                         this.currentState.lastUpdate = Date.now();
                         await this.updateDashboard({ preserveState: true });
+
+                        // Push lightweight watch stats to webview for UI banner
+                        const currentWatch = this.storageManager.getCurrentWatch();
+                        if (this.panel && currentWatch) {
+                            // Use StatsCalculator to compute per-channel stats for the current watch
+                            try {
+                                const sessionStats = this.statsCalculator.getWatchSessionStats(currentWatch as any);
+                                // Build summary metrics
+                                let probesRun = 0;
+                                const perChannel: Record<string, any> = {};
+                                for (const [chId, stats] of sessionStats.entries()) {
+                                    perChannel[chId] = {
+                                        availability: Math.round(stats.availability),
+                                        totalSamples: stats.totalSamples,
+                                        successfulSamples: stats.successfulSamples,
+                                        p95: Math.round(stats.latencyStats.p95)
+                                    };
+                                    probesRun += stats.totalSamples;
+                                }
+
+                                // Overall successRatePct derived from per-channel totals
+                                const totalSamples = Object.values(perChannel).reduce((s: number, c: any) => s + (c.totalSamples || 0), 0);
+                                const successfulSamples = Object.values(perChannel).reduce((s: number, c: any) => s + (c.successfulSamples || 0), 0);
+                                const successRatePct = totalSamples > 0 ? Math.round((successfulSamples / totalSamples) * 100) : 0;
+                                this.panel.webview.postMessage({ command: 'watchStats', payload: { probesRun, successRatePct, perChannel } });
+                            } catch (err) {
+                                // Fallback to lightweight stats if StatsCalculator fails
+                                const channels = this.configManager.getChannels();
+                                const states = this.scheduler.getChannelRunner().getChannelStates();
+                                const probesRun = channels.reduce((acc, ch) => acc + (states.get(ch.id)?.totalChecks || 0), 0);
+                                let success = 0, total = 0;
+                                for (const ch of channels) {
+                                    const s = states.get(ch.id)?.lastSample;
+                                    if (s) {
+                                        total++;
+                                        if (s.success) success++;
+                                    }
+                                }
+                                const successRatePct = total > 0 ? Math.round((success / total) * 100) : 0;
+                                this.panel.webview.postMessage({ command: 'watchStats', payload: { probesRun, successRatePct } });
+                            }
+                        }
                     } finally {
                         running = false;
                     }
@@ -397,7 +483,9 @@ export class DashboardManager {
                 });
                 
             case 'timeline-incidents':
-                const incidents = generateIncidentsData(channels, 7, this.storageManager);
+                const incidentsTimeRange = options.timeRange || this.currentState.timeRange || '7d';
+                const incidentsDays = this.getTimeRangeDays(incidentsTimeRange);
+                const incidents = generateIncidentsData(channels, incidentsDays, this.storageManager);
                 return generateTimelineIncidentsView({
                     channels,
                     states,
@@ -781,6 +869,15 @@ export class DashboardManager {
 
     private getTimeRangeDays(range: string): number {
         switch (range) {
+            // New FilterPanel format
+            case '5m': return 0.003; // 5 minutes ≈ 0.003 days
+            case '1h': return 0.042; // 1 hour ≈ 0.042 days  
+            case '6h': return 0.25;  // 6 hours = 0.25 days
+            case '12h': return 0.5;  // 12 hours = 0.5 days
+            case '1d': return 1;
+            case '7d': return 7;
+            case '30d': return 30;
+            // Legacy format support
             case '24H': return 1;
             case '3D': return 3; 
             case '7D': return 7;
@@ -791,6 +888,15 @@ export class DashboardManager {
 
     private getTimeRangeLabel(range: string): string {
         switch (range) {
+            // New FilterPanel format
+            case '5m': return 'Last 5 Minutes';
+            case '1h': return 'Last 1 Hour';
+            case '6h': return 'Last 6 Hours';
+            case '12h': return 'Last 12 Hours';
+            case '1d': return 'Last 1 Day';
+            case '7d': return 'Last 7 Days';
+            case '30d': return 'Last 30 Days';
+            // Legacy format support
             case '24H': return 'Last 24 Hours';
             case '3D': return 'Last 3 Days';
             case '7D': return 'Last 7 Days';

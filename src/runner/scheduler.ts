@@ -2,7 +2,8 @@ import { EventEmitter } from 'events';
 import { ChannelRunner, ChannelEvents } from './channelRunner';
 import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
-import { WatchSession, Sample } from '../types';
+import { WatchSession, Sample, IndividualChannelWatch } from '../types';
+import { IndividualWatchManager } from '../watch/individualWatchManager';
 
 interface ScheduledChannel {
     id: string;
@@ -24,6 +25,8 @@ export class Scheduler extends EventEmitter {
     private channelRunner = new ChannelRunner();
     private scheduledChannels = new Map<string, ScheduledChannel>();
     private isEnabled = false;
+    protected individualWatchManager?: IndividualWatchManager;
+
     private fishyConditions: FishyCondition[] = [
         {
             type: 'consecutive_failures',
@@ -44,9 +47,11 @@ export class Scheduler extends EventEmitter {
             description: '≥2 DNS errors in 2m'
         }
     ];
+    private isWatchPaused = false;
 
-    constructor() {
+    constructor(individualWatchManager?: IndividualWatchManager) {
         super();
+        this.individualWatchManager = individualWatchManager;
         this.setupChannelRunnerEvents();
     }
 
@@ -116,53 +121,119 @@ export class Scheduler extends EventEmitter {
     }
 
     private calculateNextRun(channelId: string): number {
+        const intervalResult = this.getEffectiveInterval(channelId);
+        
+        // Add jitter to final interval
+        const jitter = (Math.random() - 0.5) * 2 * (intervalResult.jitterPct / 100);
+        const jitteredInterval = intervalResult.finalIntervalSec * (1 + jitter);
+
+        // Log the decision for transparency
+        console.log(`[Scheduler] ${intervalResult.explanation}`);
+        
+        return Date.now() + (jitteredInterval * 1000);
+    }
+
+    /**
+     * SIMPLIFIED PRECEDENCE HIERARCHY
+     * Get effective interval with clear, predictable precedence and full transparency
+     * 
+     * NEW CLEAR ORDER (only 4 levels):
+     * 1. 🎯 Individual Watch - Explicit per-channel watch  
+     * 2. ⚙️ Channel Config - .healthwatch.json channel settings
+     * 3. 🌐 Global Watch - When active watch is running
+     * 4. 📋 Defaults - System defaults with adaptive adjustments
+     */
+    getEffectiveInterval(channelId: string): {
+        finalIntervalSec: number;
+        baseIntervalSec: number;
+        source: '🎯 Individual Watch' | '⚙️ Channel Config' | '🌐 Global Watch' | '📋 Defaults';
+        adaptiveMultiplier: number;
+        adaptiveReason: string;
+        jitterPct: number;
+        explanation: string;
+    } {
         const channels = this.configManager.getChannels();
         const channel = channels.find(c => c.id === channelId);
         if (!channel) {
-            return Date.now() + 60000; // Default 1 minute
+            return {
+                finalIntervalSec: 60,
+                baseIntervalSec: 60,
+                source: '📋 Defaults',
+                adaptiveMultiplier: 1,
+                adaptiveReason: 'Channel not found',
+                jitterPct: 10,
+                explanation: `Channel '${channelId}': ❌ NOT FOUND → 60s default`
+            };
         }
 
         const defaults = this.configManager.getDefaults();
         const currentWatch = this.storageManager.getCurrentWatch();
         
-        // FIXED: Respect per-channel intervals as highest priority
-        // Per-channel configuration always takes precedence
-        let intervalSec: number = channel.intervalSec ?? defaults.intervalSec;
+        let baseIntervalSec: number;
+        let source: '🎯 Individual Watch' | '⚙️ Channel Config' | '🌐 Global Watch' | '📋 Defaults';
+        let sourceDetail: string;
+
+        // LEVEL 1: 🎯 Individual Watch (highest priority)
+        const individualWatch = this.individualWatchManager?.getEffectiveWatch(channelId);
+        const watchType = this.individualWatchManager?.getActiveWatchType(channelId) || 'baseline';
         
-        // Only apply global overrides if no per-channel interval is specified
-        if (!channel.intervalSec) {
-            if (currentWatch?.isActive) {
-                // High cadence during watch (only if no channel-specific interval)
-                const watchConfig = this.configManager.getWatchConfig();
-                intervalSec = Math.min(intervalSec, watchConfig.highCadenceIntervalSec);
-            } else if (this.configManager.getOnlyWhenFishyConfig().enabled) {
-                // Baseline interval in fishy mode (only if no channel-specific interval)
-                const fishyConfig = this.configManager.getOnlyWhenFishyConfig();
-                intervalSec = fishyConfig.baselineIntervalSec;
-            }
+        if (individualWatch && watchType === 'individual') {
+            baseIntervalSec = (individualWatch as IndividualChannelWatch).intervalSec ?? 
+                             this.configManager.getWatchConfig().highCadenceIntervalSec;
+            source = '🎯 Individual Watch';
+            sourceDetail = `individual watch (${baseIntervalSec}s)`;
+        }
+        // LEVEL 2: ⚙️ Channel Config (.healthwatch.json)
+        else if (channel.intervalSec) {
+            baseIntervalSec = channel.intervalSec;
+            source = '⚙️ Channel Config';
+            sourceDetail = `channel config (${baseIntervalSec}s)`;
+        }
+        // LEVEL 3: 🌐 Global Watch (when active)
+        else if (currentWatch?.isActive && !(currentWatch as any).paused) {
+            baseIntervalSec = this.configManager.getWatchConfig().highCadenceIntervalSec;
+            source = '🌐 Global Watch';
+            sourceDetail = `global watch active (${baseIntervalSec}s)`;
+        }
+        // LEVEL 4: 📋 Defaults (fallback)
+        else {
+            baseIntervalSec = defaults.intervalSec;
+            source = '📋 Defaults';
+            sourceDetail = `system defaults (${baseIntervalSec}s)`;
         }
 
-        // Apply backoff for offline channels
-        const backoffMultiplier = this.channelRunner.getBackoffMultiplier(channelId);
-        intervalSec *= backoffMultiplier;
-
-        // Add jitter
+        // Apply adaptive backoff (accelerates during outages, slows when stable)
+        const adaptiveResult = this.channelRunner.getAdaptiveInterval(channelId, baseIntervalSec);
+        
         const jitterPct = channel.jitterPct ?? defaults.jitterPct;
-        const jitter = (Math.random() - 0.5) * 2 * (jitterPct / 100);
-        const jitteredInterval = intervalSec * (1 + jitter);
+        
+        // Build clear explanation
+        const adaptiveExplanation = adaptiveResult.strategy !== 'stable' 
+            ? ` → ${adaptiveResult.strategy.toUpperCase()} ${adaptiveResult.intervalSec}s (${adaptiveResult.multiplier.toFixed(2)}×: ${adaptiveResult.reason})`
+            : '';
+            
+        const explanation = `Channel '${channelId}': ${source} ${sourceDetail}${adaptiveExplanation}`;
 
-        // Debug logging for interval precedence
-        if (channel.intervalSec && backoffMultiplier === 1) {
-            console.log(`[Scheduler] Channel '${channelId}': Using per-channel interval ${channel.intervalSec}s`);
-        } else if (backoffMultiplier > 1) {
-            console.log(`[Scheduler] Channel '${channelId}': Applying ${backoffMultiplier}x backoff (${intervalSec}s)`);
-        }
-
-        return Date.now() + (jitteredInterval * 1000);
+        return {
+            finalIntervalSec: adaptiveResult.intervalSec,
+            baseIntervalSec,
+            source,
+            adaptiveMultiplier: adaptiveResult.multiplier,
+            adaptiveReason: adaptiveResult.reason,
+            jitterPct,
+            explanation
+        };
     }
 
     private scheduleNext(scheduled: ScheduledChannel): void {
         if (!this.isEnabled) {
+            return;
+        }
+
+        // If a global watch is paused, do not schedule probe runs
+        const currentWatch = this.storageManager.getCurrentWatch();
+        if (currentWatch?.isActive && (currentWatch as any).paused) {
+            // leave timers cleared while paused
             return;
         }
 
@@ -188,6 +259,24 @@ export class Scheduler extends EventEmitter {
                 }
             }
         }, delay);
+    }
+
+    /**
+     * Pause scheduling for an active watch. Clears timers so probes stop running.
+     */
+    pauseForWatch(): void {
+        this.isWatchPaused = true;
+    this.clearAllTimers();
+    // Abort any in-flight probes immediately
+    try { this.channelRunner.abortAllRunning(); } catch (e) {}
+    }
+
+    /**
+     * Resume scheduling after a paused watch. Reschedules channels.
+     */
+    resumeForWatch(): void {
+        this.isWatchPaused = false;
+        if (this.isEnabled) this.refreshChannels();
     }
 
     private adjustScheduleForStateChange(channelId: string, newState: string): void {
@@ -363,5 +452,48 @@ export class Scheduler extends EventEmitter {
 
     isRunning(): boolean {
         return this.isEnabled;
+    }
+
+    /**
+     * PUBLIC API: Get interval configuration explanation for debugging and UI
+     * This enables the "Channel Details" UI and debug features
+     */
+    explainChannelInterval(channelId: string): {
+        finalIntervalSec: number;
+        baseIntervalSec: number;
+        source: '🎯 Individual Watch' | '⚙️ Channel Config' | '🌐 Global Watch' | '📋 Defaults';
+        adaptiveMultiplier: number;
+        adaptiveReason: string;
+        jitterPct: number;
+        explanation: string;
+        humanReadableExplanation: string;
+    } {
+        const result = this.getEffectiveInterval(channelId);
+        
+        // Create user-friendly explanation for UI
+        let humanReadableExplanation = '';
+        switch (result.source) {
+            case '🎯 Individual Watch':
+                humanReadableExplanation = `This channel has an individual watch active, which overrides all other settings. Monitoring every ${result.baseIntervalSec} seconds.`;
+                break;
+            case '⚙️ Channel Config':
+                humanReadableExplanation = `Using interval from .healthwatch.json channel configuration: ${result.baseIntervalSec} seconds.`;
+                break;
+            case '🌐 Global Watch':
+                humanReadableExplanation = `A global watch is active, using high-frequency monitoring: ${result.baseIntervalSec} seconds.`;
+                break;
+            case '📋 Defaults':
+                humanReadableExplanation = `Using system default interval: ${result.baseIntervalSec} seconds.`;
+                break;
+        }
+
+        if (result.adaptiveMultiplier !== 1) {
+            humanReadableExplanation += ` Adaptive backoff is ${result.adaptiveMultiplier > 1 ? 'slowing down' : 'speeding up'} monitoring (${result.adaptiveMultiplier.toFixed(2)}x) because: ${result.adaptiveReason}`;
+        }
+
+        return {
+            ...result,
+            humanReadableExplanation
+        };
     }
 }

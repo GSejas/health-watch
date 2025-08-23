@@ -8,7 +8,7 @@
  * - Remote storage (future: cloud sync)
  */
 
-import { Sample, ChannelState, WatchSession, Outage } from '../types';
+import { Sample, ChannelState, WatchSession, Outage, RawSample } from '../types';
 
 export interface StorageBackend {
     /**
@@ -46,12 +46,12 @@ export interface SampleStorage extends StorageBackend {
     /**
      * Store a health sample
      */
-    storeSample(channelId: string, sample: Sample): Promise<void>;
+    storeSample(channelId: string, sample: RawSample): Promise<void>;
 
     /**
      * Store multiple samples in batch (more efficient)
      */
-    storeSamples(samples: Array<{ channelId: string; sample: Sample }>): Promise<void>;
+    storeSamples(samples: Array<{ channelId: string; sample: RawSample }>): Promise<void>;
 
     /**
      * Get samples for a channel in time range
@@ -78,7 +78,7 @@ export interface StateStorage extends StorageBackend {
     /**
      * Set channel state
      */
-    setChannelState(channelId: string, state: ChannelState): Promise<void>;
+    setChannelState(channelId: string, state: Partial<ChannelState>): Promise<void>;
 
     /**
      * Get all channel states

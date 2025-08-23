@@ -7,6 +7,7 @@ import { HttpsProbe } from '../probes/https';
 import { TcpProbe } from '../probes/tcp';
 import { DnsProbe } from '../probes/dns';
 import { ScriptProbe } from '../probes/script';
+import { AdaptiveBackoffStrategy, BackoffInput } from './adaptiveBackoff';
 
 export interface ChannelEvents {
     'sample': { channelId: string; sample: Sample };
@@ -40,6 +41,17 @@ export class ChannelRunner extends EventEmitter {
             throw new Error(`Channel '${channelId}' not found`);
         }
 
+        // If there's a global active watch that is paused, short-circuit and return a paused sample
+        const currentWatch = this.storageManager.getCurrentWatch();
+        if (currentWatch?.isActive && (currentWatch as any).paused) {
+            const sample: Sample = {
+                timestamp: Date.now(),
+                success: false,
+                error: 'Watch is paused'
+            };
+            return sample;
+        }
+
         if (this.pausedChannels.has(channelId)) {
             const sample: Sample = {
                 timestamp: Date.now(),
@@ -58,7 +70,11 @@ export class ChannelRunner extends EventEmitter {
         const abortController = new AbortController();
         this.runningChannels.set(channelId, abortController);
 
-        const state = this.storageManager.getChannelState(channelId);
+    const state = this.storageManager.getChannelState(channelId);
+    // Defensive defaults to maintain arithmetic operations
+    state.consecutiveFailures = state.consecutiveFailures ?? 0;
+    state.backoffMultiplier = state.backoffMultiplier ?? 1;
+    state.lastStateChange = state.lastStateChange ?? Date.now();
         let sample: Sample;
 
         try {
@@ -198,19 +214,19 @@ export class ChannelRunner extends EventEmitter {
         const channel = channels.find(c => c.id === channelId);
         const threshold = channel?.threshold ?? defaults.threshold;
         
-        const newFailureCount = state.consecutiveFailures + 1;
+    const newFailureCount = (state.consecutiveFailures || 0) + 1;
         
         // Track first failure time in the current streak
-        const firstFailureTime = state.consecutiveFailures === 0 ? sample.timestamp : 
+        const firstFailureTime = (state.consecutiveFailures || 0) === 0 ? sample.timestamp : 
             (state.firstFailureTime || sample.timestamp);
         
         if (newFailureCount >= threshold && state.state !== 'offline') {
             // Transition to offline - record enhanced outage data
-            this.storageManager.updateChannelState(channelId, {
+                this.storageManager.updateChannelState(channelId, {
                 state: 'offline',
                 consecutiveFailures: newFailureCount,
                 lastStateChange: sample.timestamp,
-                backoffMultiplier: Math.min(state.backoffMultiplier * 3, 10),
+                backoffMultiplier: 1, // 🔄 **SURGICAL FIX**: No longer increase backoff when offline
                 firstFailureTime: firstFailureTime
             });
             
@@ -263,9 +279,66 @@ export class ChannelRunner extends EventEmitter {
         }
     }
 
-    getBackoffMultiplier(channelId: string): number {
+    /** Abort all currently running channels (used when pausing a global watch) */
+    abortAllRunning(): void {
+        for (const [id, controller] of this.runningChannels.entries()) {
+            try { controller.abort(); } catch (e) {}
+        }
+    }
+
+    /**
+     * 🔄 **SURGICAL FIX**: Calculate adaptive probe interval
+     * 
+     * **Before**: Offline channels got slower (3× backoff multiplier)
+     * **After**: Offline channels get faster (adaptive acceleration)
+     * 
+     * @param channelId - Target channel identifier  
+     * @param baseIntervalSec - Configured monitoring interval
+     * @returns Optimized interval calculation with strategy info
+     */
+    getAdaptiveInterval(channelId: string, baseIntervalSec: number): {
+        intervalSec: number;
+        multiplier: number;
+        strategy: string;
+        reason: string;
+    } {
+        const channels = this.configManager.getChannels();
+        const channel = channels.find(c => c.id === channelId);
         const state = this.storageManager.getChannelState(channelId);
-        return state.state === 'offline' ? state.backoffMultiplier : 1;
+        const currentWatch = this.storageManager.getCurrentWatch();
+        
+        const input: BackoffInput = {
+            state: state.state,
+            consecutiveFailures: state.consecutiveFailures,
+            baseIntervalSec,
+            isInWatch: !!(currentWatch?.isActive && !(currentWatch as any).paused),
+            priority: (channel as any)?.priority || 'medium'
+        };
+        
+        const result = AdaptiveBackoffStrategy.calculateInterval(input);
+        
+        return {
+            intervalSec: result.adjustedIntervalSec,
+            multiplier: result.multiplier,
+            strategy: result.strategy,
+            reason: result.reason
+        };
+    }
+
+    /**
+     * @deprecated Use getAdaptiveInterval() instead
+     * 
+     * **Legacy Method**: Kept for backward compatibility during transition.
+     * This method implements the old "backward backoff" logic that caused missed outages.
+     */
+    getBackoffMultiplier(channelId: string): number {
+        // **Temporary Bridge**: Use new adaptive logic but return old format
+        const state = this.storageManager.getChannelState(channelId);
+        const defaults = this.configManager.getDefaults();
+        const adaptive = this.getAdaptiveInterval(channelId, defaults.intervalSec);
+        
+        // Convert new logic to old multiplier format for compatibility
+        return adaptive.multiplier;
     }
 
     async runAllChannels(): Promise<Map<string, Sample>> {

@@ -33,10 +33,11 @@ const IncidentItem: React.FC<IncidentItemProps> = ({ incident }) => {
         }
     };
 
-    const formatDuration = (duration?: number): string => {
-        if (!duration) return 'Ongoing';
-        const hours = Math.floor(duration / 60);
-        const minutes = duration % 60;
+    const formatDuration = (duration?: number | null): string => {
+        if (duration == null || isNaN(Number(duration))) return 'Ongoing';
+        const mins = Math.round(Number(duration));
+        const hours = Math.floor(mins / 60);
+        const minutes = mins % 60;
         if (hours > 0) {
             return `${hours}h ${minutes}m`;
         }
@@ -44,33 +45,33 @@ const IncidentItem: React.FC<IncidentItemProps> = ({ incident }) => {
     };
 
     return (
-        <div className={`incident-item severity-${incident.severity}`}>
+        <div className={`incident-item severity-${incident.severity || 'unknown'}`}>
             <div className="incident-timeline-marker">
                 <div className="incident-time">
-                    {new Date(incident.timestamp).toLocaleString()}
+                    {incident.timestamp ? new Date(incident.timestamp).toLocaleString() : 'Unknown time'}
                 </div>
-                <div className={`incident-marker ${incident.type}`}>
-                    {getIncidentTypeIcon(incident.type)}
+                <div className={`incident-marker ${incident.type || 'generic'}`}>
+                    {getIncidentTypeIcon(incident.type || 'generic')}
                 </div>
             </div>
             <div className="incident-details">
                 <div className="incident-title">
-                    {getSeverityIcon(incident.severity)} {incident.title}
+                    {getSeverityIcon(incident.severity || 'unknown')} {incident.title || 'Untitled Incident'}
                 </div>
                 <div className="incident-description">{incident.description}</div>
                 <div className="incident-meta">
-                    <span className="incident-channel">{incident.channel}</span>
-                    {incident.duration && (
+                    <span className="incident-channel">{incident.channel || 'unknown'}</span>
+                    {incident.duration != null && (
                         <span className="incident-duration">
                             {formatDuration(incident.duration)} duration
                         </span>
                     )}
-                    <span className="incident-impact">{incident.impact}</span>
+                    <span className="incident-impact">{incident.impact || ''}</span>
                 </div>
             </div>
             <div className="incident-severity">
                 <div className={`severity-badge ${incident.severity}`}>
-                    {incident.severity.toUpperCase()}
+                    {(incident.severity || 'unknown').toString().toUpperCase()}
                 </div>
             </div>
         </div>
@@ -158,8 +159,8 @@ const IncidentFilters: React.FC<{
                 <select value={selectedChannel} onChange={(e) => onChannelChange(e.target.value)}>
                     <option value="">All Channels</option>
                     {channels.map(channel => (
-                        <option key={channel.id} value={channel.id}>
-                            {channel.name || channel.id}
+                        <option key={channel?.id ?? String(channel)} value={channel?.id ?? String(channel)}>
+                            {channel?.name || channel?.id || String(channel)}
                         </option>
                     ))}
                 </select>
@@ -219,8 +220,8 @@ export const TimelineIncidentsView: React.FC<TimelineIncidentsViewProps> = ({
 
             <div className="incidents-list">
                 {filteredIncidents.length > 0 ? (
-                    filteredIncidents.map(incident => (
-                        <IncidentItem key={incident.id} incident={incident} />
+                    filteredIncidents.map((incident, idx) => (
+                        <IncidentItem key={(incident as any).id ?? incident.timestamp ?? idx} incident={incident} />
                     ))
                 ) : (
                     <EmptyIncidents />

@@ -298,7 +298,8 @@ export class StatsCalculator {
     getWatchSessionStats(session: WatchSession): Map<string, ChannelStats> {
         const stats = new Map<string, ChannelStats>();
         
-        for (const [channelId, samples] of session.samples.entries()) {
+    if (!session.samples) return stats;
+    for (const [channelId, samples] of session.samples.entries()) {
             if (samples.length === 0) {
                 stats.set(channelId, this.createEmptyStats(channelId));
                 continue;
@@ -338,7 +339,7 @@ export class StatsCalculator {
         
         if (includeCurrentWatch) {
             const currentWatch = this.storageManager.getCurrentWatch();
-            if (currentWatch?.samples.has(channelId)) {
+            if (currentWatch && currentWatch.samples && currentWatch.samples.has(channelId)) {
                 const watchSamples = currentWatch.samples.get(channelId)!;
                 const filteredWatchSamples = watchSamples.filter(s => 
                     s.timestamp >= windowStartMs && s.timestamp <= windowEndMs

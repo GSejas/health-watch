@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 
 export interface FilterOptions {
-    timeRange: '1h' | '6h' | '12h' | '1d' | '7d' | '30d';
+    timeRange: '5m' | '1h' | '6h' | '12h' | '1d' | '7d' | '30d';
     selectedChannels: string[];
     showOnlyProblems: boolean;
     refreshRate?: number;
@@ -23,6 +23,7 @@ interface FilterPanelProps {
 }
 
 const timeRangeOptions = [
+    { value: '5m', label: '5 Minutes' },
     { value: '1h', label: '1 Hour' },
     { value: '6h', label: '6 Hours' },
     { value: '12h', label: '12 Hours' },

@@ -1,20 +1,67 @@
 {
+  "defaults": {
+    "intervalSec": 300,
+    "timeoutMs": 5000,
+    "threshold": 3
+  },
   "channels": [
     {
       "id": "internet",
-      "name": "Internet Connectivity",
+      "name": "🌐 Internet Connectivity", 
       "type": "https",
-      "url": "https://8.8.8.8",
+      "url": "https://1.1.1.1",
+      "intervalSec": 15,
+      "timeoutMs": 1500,
+      "threshold": 2,
+      "icon": "$(server)",
+      "priority": "critical",
+      "expect": {
+        "statusRange": [200, 499]
+      }
+    },
+    {
+      "id": "dns-check",
+      "name": "🔍 DNS Resolution",
+      "type": "dns", 
+      "hostname": "google.com",
       "intervalSec": 30,
-      "icon": "$(server)"
+      "timeoutMs": 2000,
+      "threshold": 2,
+      "icon": "$(globe)",
+      "priority": "critical"
+    },
+    {
+      "id": "vpn-gateway",
+      "name": "🔒 VPN Gateway",
+      "type": "tcp",
+      "target": "10.0.0.1:443",
+      "intervalSec": 60,
+      "timeoutMs": 3000,
+      "threshold": 2,
+      "icon": "$(shield)",
+      "priority": "high",
+      "enabled": false
+    },
+    {
+      "id": "work-internal",
+      "name": "🏢 Internal Portal",
+      "type": "https",
+      "url": "https://intranet.company.com/health",
+      "intervalSec": 120,
+      "timeoutMs": 4000,
+      "threshold": 3,
+      "icon": "$(home)",
+      "priority": "medium",
+      "enabled": false
     },
     {
       "id": "test-basic",
-      "name": "Basic Test",
+      "name": "🧪 Test Service",
       "type": "https",
-      "url": "https://httpbin.org/status/200",
-      "intervalSec": 30,
-      "icon": "$(server)"
+      "url": "https://httpbin.org/status/200", 
+      "intervalSec": 300,
+      "icon": "$(beaker)",
+      "priority": "low"
     }
   ]
 }

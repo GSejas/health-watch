@@ -7,7 +7,7 @@ describe('TimelineHeatmapView', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('renders empty state when no channels provided', () => {
-    render(React.createElement(TimelineHeatmapView, { channels: [], states: {}, heatmapData: {} }));
+    render(React.createElement(TimelineHeatmapView, { channels: [], states: {}, heatmapData: {}, timeRange: '24h' }));
         expect(screen.getByText(/No Heatmap Data/i)).toBeInTheDocument();
     });
 
@@ -21,7 +21,7 @@ describe('TimelineHeatmapView', () => {
             ]
         };
 
-        render(React.createElement(TimelineHeatmapView, { channels: [channel], states: {}, heatmapData }));
+        render(React.createElement(TimelineHeatmapView, { channels: [channel], states: {}, heatmapData, timeRange: '24h' }));
         const allCells = document.querySelectorAll('.heatmap-cell');
         expect(allCells.length).toBe(3);
         const firstColor = (allCells[0] as HTMLElement).style.backgroundColor;

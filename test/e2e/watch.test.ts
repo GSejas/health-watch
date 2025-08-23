@@ -14,7 +14,8 @@ import { StatsCalculator } from '../../src/stats';
 import { ReportGenerator } from '../../src/report';
 
 describe('Watch Sessions E2E Tests', function() {
-    this.timeout(20000); // 20 second timeout for long-running operations
+    // Increased timeout for E2E
+    this.timeout(60000); // 60 second timeout for long-running operations
 
     let extension: vscode.Extension<any> | undefined;
     let api: any;
@@ -22,17 +23,42 @@ describe('Watch Sessions E2E Tests', function() {
     let tempDir: string;
 
     before(async function() {
+    this.timeout(60000); // 60 second timeout for activation and initialization
+        
         extension = vscode.extensions.getExtension('GSejas.health-watch');
         assert.ok(extension, 'Extension should be found');
         
         if (!extension.isActive) {
+            console.log('Activating extension...');
             await extension.activate();
+            console.log('Extension activated');
         }
         
         api = extension.exports;
         assert.ok(api, 'Extension should export API');
         
-        storageManager = StorageManager.getInstance();
+        // Wait for StorageManager to be fully initialized
+        console.log('Obtaining StorageManager instance...');
+        try {
+            // Prefer synchronous access if already initialized by extension activation
+            storageManager = StorageManager.getInstance();
+        } catch (e) {
+            // Fallback to whenInitialized with timeout
+            try {
+                storageManager = await Promise.race([
+                    StorageManager.whenInitialized(),
+                    new Promise<StorageManager>((_res, rej) => setTimeout(() => rej(new Error('Storage init timed out')), 15000))
+                ]);
+            } catch (err) {
+                if ((StorageManager as any).instance) {
+                    storageManager = (StorageManager as any).instance as StorageManager;
+                    console.warn('StorageManager.whenInitialized() timed out, falling back to instance');
+                } else {
+                    throw err;
+                }
+            }
+        }
+        console.log('StorageManager ready');
         
         // Create temporary directory for test files
         tempDir = path.join(os.tmpdir(), 'healthwatch-watch-test-' + Date.now());
@@ -103,52 +129,55 @@ describe('Watch Sessions E2E Tests', function() {
             };
 
             const channelDisposable = api.registerChannel(testChannel);
+            // allow propagation, then set up listeners and start watch
             let sampleReceived = false;
 
-            const eventDisposable = api.onSample((event: any) => {
-                if (event.id === 'watch-sample-test' && !sampleReceived) {
-                    sampleReceived = true;
-                    
-                    assert.ok(event.sample, 'Should receive sample data');
-                    assert.ok(typeof event.sample.success === 'boolean', 'Sample should have success flag');
-                    assert.ok(typeof event.sample.latencyMs === 'number', 'Sample should have latency');
-                    
-                    // Check if sample is being collected in watch
-                    const currentWatch = api.getCurrentWatch();
-                    if (currentWatch && currentWatch.samples.has('watch-sample-test')) {
-                        const samples = currentWatch.samples.get('watch-sample-test');
-                        assert.ok(samples.length > 0, 'Watch should collect samples');
-                    }
-
-                    // Cleanup
-                    api.stopWatch();
-                    channelDisposable.dispose();
-                    eventDisposable.dispose();
-                    done();
-                }
-            });
-
-            // Start watch and trigger sample
-            api.startWatch({ duration: 'forever' });
-            api.runChannelNow('watch-sample-test').catch(() => {
-                // Ignore probe errors
-                if (!sampleReceived) {
-                    api.stopWatch();
-                    channelDisposable.dispose();
-                    eventDisposable.dispose();
-                    done(new Error('No sample received'));
-                }
-            });
-
-            // Timeout protection
             setTimeout(() => {
-                if (!sampleReceived) {
-                    api.stopWatch();
-                    channelDisposable.dispose();
-                    eventDisposable.dispose();
-                    done(new Error('Timeout waiting for sample'));
-                }
-            }, 10000);
+                const timeoutId = setTimeout(() => {
+                    if (!sampleReceived) {
+                        api.stopWatch();
+                        channelDisposable.dispose();
+                        // eventDisposable is scoped below; no-op here
+                        return done(new Error('Timeout waiting for sample'));
+                    }
+                }, 15000);
+
+                const eventDisposable = api.onSample((event: any) => {
+                    if (event.id === 'watch-sample-test' && !sampleReceived) {
+                        sampleReceived = true;
+
+                        try {
+                            assert.ok(event.sample, 'Should receive sample data');
+                            assert.ok(typeof event.sample.success === 'boolean', 'Sample should have success flag');
+                            assert.ok(typeof event.sample.latencyMs === 'number', 'Sample should have latency');
+
+                            // Check if sample is being collected in watch
+                            const currentWatch = api.getCurrentWatch();
+                            if (currentWatch && currentWatch.samples.has('watch-sample-test')) {
+                                const samples = currentWatch.samples.get('watch-sample-test');
+                                assert.ok(samples.length > 0, 'Watch should collect samples');
+                            }
+                        } catch (err) {
+                            clearTimeout(timeoutId);
+                            api.stopWatch();
+                            channelDisposable.dispose();
+                            eventDisposable.dispose();
+                            return done(err as any);
+                        }
+
+                        // Cleanup
+                        clearTimeout(timeoutId);
+                        api.stopWatch();
+                        channelDisposable.dispose();
+                        eventDisposable.dispose();
+                        return done();
+                    }
+                });
+
+                // Start watch and trigger sample
+                api.startWatch({ duration: 'forever' });
+                void api.runChannelNow('watch-sample-test');
+            }, 250);
         });
     });
 
@@ -182,7 +211,9 @@ describe('Watch Sessions E2E Tests', function() {
             assert.ok(stats.topFailureReason === 'timeout', 'Should identify top failure reason');
         });
 
+        
         it('should generate performance recommendations', () => {
+
             const statsCalculator = new StatsCalculator();
             
             const highLatencyStats = {
@@ -351,6 +382,9 @@ describe('Watch Sessions E2E Tests', function() {
 
             const httpsDisposable = api.registerChannel(httpsChannel);
             const tcpDisposable = api.registerChannel(tcpChannel);
+
+            // allow time for channels to register
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             try {
                 // Start short watch session

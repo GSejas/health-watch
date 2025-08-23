@@ -59,9 +59,9 @@ export class StatusTreeDataProvider implements vscode.TreeDataProvider<StatusTre
             const currentWatch = this.storageManager.getCurrentWatch();
             if (currentWatch?.isActive) {
                 const startedAt = new Date(currentWatch.startTime).toLocaleTimeString();
-                const duration = typeof currentWatch.duration === 'string' 
-                    ? currentWatch.duration 
-                    : `${Math.round(currentWatch.duration / 60000)}m`;
+                const duration = typeof currentWatch.duration === 'string'
+                    ? currentWatch.duration
+                    : (typeof currentWatch.duration === 'number' ? `${Math.round(currentWatch.duration / 60000)}m` : 'unknown');
                 
                 items.push(new StatusTreeItem(
                     'Active Watch',
@@ -128,13 +128,15 @@ export class StatusTreeDataProvider implements vscode.TreeDataProvider<StatusTre
             }
 
             // Stats for current watch or recent data
-            if (currentWatch?.isActive && currentWatch.samples.size > 0) {
+            const samplesMap = currentWatch?.samples instanceof Map ? currentWatch.samples : undefined;
+            if (currentWatch?.isActive && samplesMap && samplesMap.size > 0) {
                 let totalSamples = 0;
                 let successfulSamples = 0;
                 
-                for (const samples of currentWatch.samples.values()) {
-                    totalSamples += samples.length;
-                    successfulSamples += samples.filter(s => s.success).length;
+                for (const samples of samplesMap.values()) {
+                    const arr = Array.isArray(samples) ? samples : [];
+                    totalSamples += arr.length;
+                    successfulSamples += arr.filter((s: any) => s?.success).length;
                 }
 
                 if (totalSamples > 0) {
