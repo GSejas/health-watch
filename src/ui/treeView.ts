@@ -217,6 +217,32 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
             await this.openChannelConfig(channelId);
         });
         this.disposables.push(cmd);
+
+        // Register commands: disable/enable channel in config (persistent)
+        this.disposables.push(
+            vscode.commands.registerCommand('healthWatch.disableChannelInConfig', async (item?: any) => {
+                const channelId = item?.channelInfo?.id || item?.id || item?.channelId;
+                if (!channelId) {
+                    vscode.window.showWarningMessage('No channel selected');
+                    return;
+                }
+                await this.setChannelEnabledInConfig(channelId, false);
+            }),
+            vscode.commands.registerCommand('healthWatch.enableChannelInConfig', async () => {
+                // Since disabled channels are not shown in the tree, prompt user from config
+                const disabled = await this.listDisabledChannelsFromConfig();
+                if (disabled.length === 0) {
+                    vscode.window.showInformationMessage('No disabled channels found in configuration');
+                    return;
+                }
+                const pick = await vscode.window.showQuickPick(
+                    disabled.map(ch => ({ label: ch.name || ch.id, description: ch.type, channelId: ch.id })),
+                    { placeHolder: 'Enable channel in configuration' }
+                );
+                if (!pick) return;
+                await this.setChannelEnabledInConfig(pick.channelId, true);
+            })
+        );
     }
 
     private setupEventListeners() {
@@ -375,6 +401,98 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
         // fallback: open config file (create if missing)
         await this.openConfigurationFile();
         vscode.window.showInformationMessage(`Could not locate channel '${channelId}' exact position in .healthwatch.json; opened config instead.`);
+    }
+
+    /**
+     * Update the channel's enabled flag in .healthwatch.json and reveal the enabled property.
+     * If the file is not valid JSON, we open the file and position at the channel id line as a fallback.
+     */
+    private async setChannelEnabledInConfig(channelId: string, enabled: boolean): Promise<void> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            vscode.window.showErrorMessage('No workspace open. Cannot edit configuration.');
+            return;
+        }
+        const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.healthwatch.json');
+
+        try {
+            const doc = await vscode.workspace.openTextDocument(configUri);
+            const original = doc.getText();
+            let data: any;
+            try {
+                data = JSON.parse(original);
+            } catch (parseErr) {
+                await vscode.window.showWarningMessage('Configuration is not valid JSON; opening file for manual edit.');
+                await this.openChannelConfig(channelId);
+                return;
+            }
+
+            if (!Array.isArray(data.channels)) {
+                vscode.window.showErrorMessage('Invalid configuration: channels array missing.');
+                await this.openConfigurationFile();
+                return;
+            }
+
+            const idx = data.channels.findIndex((ch: any) => ch && ch.id === channelId);
+            if (idx === -1) {
+                vscode.window.showErrorMessage(`Channel '${channelId}' not found in configuration.`);
+                await this.openConfigurationFile();
+                return;
+            }
+
+            const current = data.channels[idx];
+            const currentEnabled = current.enabled !== false; // default true
+            if (currentEnabled === enabled) {
+                // No change; just reveal location
+                await this.openChannelConfig(channelId);
+                return;
+            }
+
+            // Apply change
+            data.channels[idx] = { ...current, enabled };
+
+            const updatedText = JSON.stringify(data, null, 2) + (original.endsWith('\n') ? '\n' : '');
+            await vscode.workspace.fs.writeFile(configUri, Buffer.from(updatedText, 'utf8'));
+
+            // Re-parse locations and refresh tree
+            await this.parseConfigFile();
+            this.refresh();
+
+            // Open and reveal the enabled property line
+            const newDoc = await vscode.workspace.openTextDocument(configUri);
+            const lines = newDoc.getText().split(/\r?\n/);
+            const idIdx = lines.findIndex(l => l.includes(`"id": "${channelId}"`));
+            let targetLine = idIdx !== -1 ? idIdx : 0;
+            for (let i = Math.max(0, idIdx); i < Math.min(lines.length, (idIdx + 15) || lines.length); i++) {
+                if (lines[i].includes('"enabled"')) { targetLine = i; break; }
+            }
+            const editor = await vscode.window.showTextDocument(newDoc);
+            const posLine = Math.max(0, targetLine);
+            const range = new vscode.Range(posLine, 0, posLine, 0);
+            editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+            editor.selection = new vscode.Selection(range.start, range.start);
+
+            vscode.window.showInformationMessage(`Channel '${channelId}' ${enabled ? 'enabled' : 'disabled'} in configuration.`);
+        } catch (err) {
+            vscode.window.showErrorMessage(`Failed to update configuration: ${err}`);
+        }
+    }
+
+    /**
+     * List channels from config that are explicitly disabled (enabled === false)
+     */
+    private async listDisabledChannelsFromConfig(): Promise<Array<{ id: string; name?: string; type?: string }>> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) return [];
+        const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.healthwatch.json');
+        try {
+            const doc = await vscode.workspace.openTextDocument(configUri);
+            const data = JSON.parse(doc.getText());
+            if (!Array.isArray(data.channels)) return [];
+            return data.channels.filter((ch: any) => ch && ch.enabled === false).map((ch: any) => ({ id: ch.id, name: ch.name, type: ch.type }));
+        } catch {
+            return [];
+        }
     }
 
     async runChannel(channelId: string): Promise<void> {

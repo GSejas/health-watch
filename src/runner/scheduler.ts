@@ -12,18 +12,6 @@ interface ScheduledChannel {
     isRunning: boolean;
 }
 
-export interface FishyCondition {
-    type: 'consecutive_failures' | 'high_latency' | 'dns_errors';
-    threshold: number;
-    windowMs: number;
-    description: string;
-    data?: {
-        consecutiveFailures?: number;
-        avgLatency?: number;
-        dnsErrors?: number;
-        [key: string]: any;
-    };
-}
 
 export class Scheduler extends EventEmitter {
     private configManager = ConfigManager.getInstance();
@@ -33,26 +21,6 @@ export class Scheduler extends EventEmitter {
     private isEnabled = false;
     protected individualWatchManager?: IndividualWatchManager;
 
-    private fishyConditions: FishyCondition[] = [
-        {
-            type: 'consecutive_failures',
-            threshold: 3,
-            windowMs: 0,
-            description: '≥3 consecutive failures'
-        },
-        {
-            type: 'high_latency',
-            threshold: 1200,
-            windowMs: 3 * 60 * 1000, // 3 minutes
-            description: 'p95 latency > 1200ms for 3m'
-        },
-        {
-            type: 'dns_errors',
-            threshold: 2,
-            windowMs: 2 * 60 * 1000, // 2 minutes
-            description: '≥2 DNS errors in 2m'
-        }
-    ];
     private isWatchPaused = false;
 
     constructor(individualWatchManager?: IndividualWatchManager) {
@@ -64,7 +32,6 @@ export class Scheduler extends EventEmitter {
     private setupChannelRunnerEvents() {
         this.channelRunner.on('sample', (event) => {
             this.emit('sample', event);
-            this.evaluateFishyConditions(event.channelId, event.sample);
         });
 
         this.channelRunner.on('stateChange', (event) => {
@@ -376,67 +343,6 @@ export class Scheduler extends EventEmitter {
         }
     }
 
-    private evaluateFishyConditions(channelId: string, sample: Sample): void {
-        if (!this.configManager.getOnlyWhenFishyConfig().enabled) {
-            return;
-        }
-
-        const currentWatch = this.storageManager.getCurrentWatch();
-        if (currentWatch?.isActive) {
-            return; // Already in a watch
-        }
-
-        const now = Date.now();
-        
-        for (const condition of this.fishyConditions) {
-            if (this.checkFishyCondition(channelId, condition, now)) {
-                this.emit('fishyConditionDetected', {
-                    channelId,
-                    condition,
-                    timestamp: now
-                });
-                return; // Only trigger once
-            }
-        }
-    }
-
-    private checkFishyCondition(channelId: string, condition: FishyCondition, timestamp: number): boolean {
-        const state = this.storageManager.getChannelState(channelId);
-        
-        switch (condition.type) {
-            case 'consecutive_failures':
-                return state.consecutiveFailures >= condition.threshold;
-            
-            case 'high_latency':
-                const latencySamples = this.storageManager.getSamplesInWindow(
-                    channelId, 
-                    timestamp - condition.windowMs, 
-                    timestamp
-                ).filter(s => s.success && s.latencyMs !== undefined);
-                
-                if (latencySamples.length < 5) {
-                    return false; // Need sufficient samples
-                }
-                
-                const latencies = latencySamples.map(s => s.latencyMs!).sort((a, b) => a - b);
-                const p95Index = Math.ceil(latencies.length * 0.95) - 1;
-                const p95Latency = latencies[p95Index];
-                
-                return p95Latency > condition.threshold;
-            
-            case 'dns_errors':
-                const dnsErrorSamples = this.storageManager.getSamplesInWindow(
-                    channelId, 
-                    timestamp - condition.windowMs, 
-                    timestamp
-                ).filter(s => !s.success && s.error?.toLowerCase().includes('dns'));
-                
-                return dnsErrorSamples.length >= condition.threshold;
-            
-            default:
-                return false;
-        }
-    }
 
     getScheduleInfo(): Map<string, { nextRun: number; isRunning: boolean; isPaused: boolean }> {
         const info = new Map<string, { nextRun: number; isRunning: boolean; isPaused: boolean }>();

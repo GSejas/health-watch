@@ -279,44 +279,13 @@ function registerCommands(
             }
         }],
         
-        ['healthWatch.showChannelDetails', async (itemOrId?: any) => {
-            try {
-                let channelId: string | undefined;
-
-                // Accept multiple shapes: TreeItem-like, raw channel id string, or an object with id/channelId
-                if (!itemOrId) {
-                    // No argument: prompt user to pick a channel
-                    const channels = treeProvider['configManager'].getChannels?.() || [];
-                    if (channels.length === 0) {
-                        vscode.window.showWarningMessage('No channels configured');
-                        return;
-                    }
-                    const picks = channels.map((ch: any) => ({ label: ch.name || ch.id, description: ch.type, channelId: ch.id }));
-                    const sel = await vscode.window.showQuickPick(picks, { placeHolder: 'Select channel to view details' });
-                    if (!sel) return;
-                    channelId = sel.channelId;
-                } else if (typeof itemOrId === 'string') {
-                    channelId = itemOrId;
-                } else if (itemOrId.channelInfo && itemOrId.channelInfo.id) {
-                    channelId = itemOrId.channelInfo.id;
-                } else if (itemOrId.id) {
-                    channelId = itemOrId.id;
-                } else if (itemOrId.channelId) {
-                    channelId = itemOrId.channelId;
-                } else {
-                    // Unexpected shape: log and attempt to stringify for debugging
-                    console.error('healthWatch.showChannelDetails received unexpected argument:', itemOrId);
-                    vscode.window.showErrorMessage('Could not determine channel to show details for (unexpected argument type)');
-                    return;
-                }
-
-                if (channelId) {
-                    await treeProvider.showChannelDetails(channelId);
-                }
-            } catch (error) {
-                console.error('Error in healthWatch.showChannelDetails command:', error);
-                vscode.window.showErrorMessage(`Failed to show channel details: ${error}`);
-            }
+        // TODO(known-issue): Channel Details (inline info icon) is disabled due to a VS Code workbench error
+        // "Unexpected type" when invoking inline actions with a primary tree item command.
+        // See docs/developers/KNOWN-ISSUES-CHANNEL-DETAILS.md for RCA and remediation plan.
+        ['healthWatch.showChannelDetails', async () => {
+            vscode.window.showInformationMessage(
+                'Channel Details view is temporarily disabled due to a known VS Code inline action issue. See docs/developers/KNOWN-ISSUES-CHANNEL-DETAILS.md.'
+            );
         }],
         
         ['healthWatch.showDetails', () => {

@@ -2,14 +2,14 @@ import * as vscode from 'vscode';
 import { ConfigManager } from '../config';
 import { StorageManager } from '../storage';
 import { formatDuration } from './dashboardUtils';
-import { Scheduler, FishyCondition } from '../runner/scheduler';
+import { Scheduler } from '../runner/scheduler';
 import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
 
 interface SnoozeState {
     channelId: string;
     duration: number; // milliseconds
     startTime: number;
-    reason: 'fishy' | 'outage' | 'multi-channel';
+    reason: 'outage' | 'multi-channel';
 }
 
 export class NotificationManager {
@@ -53,9 +53,6 @@ export class NotificationManager {
             this.handleOutageEnd(event.channelId, event.duration);
         });
 
-        this.scheduler.on('fishyConditionDetected', (event) => {
-            this.handleFishyCondition(event.channelId, event.condition);
-        });
     }
 
     /**
@@ -204,7 +201,7 @@ export class NotificationManager {
     /**
      * 🎯 Adaptive Snooze Durations based on Context
      */
-    private getContextualSnoozeOptions(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel'): Array<{label: string, duration: number}> {
+    private getContextualSnoozeOptions(channelId: string, reason: 'outage' | 'multi-channel'): Array<{label: string, duration: number}> {
         const isDevServer = this.isLikelyDevServer(channelId, channelId);
         
         if (isDevServer) {
@@ -323,93 +320,6 @@ export class NotificationManager {
         );
     }
 
-    private async handleFishyCondition(channelId: string, condition: FishyCondition) {
-        if (this.configManager.isInQuietHours()) {
-            return;
-        }
-
-        // Check if this channel is snoozed for fishy notifications  
-        if (this.isChannelSnoozed(channelId, 'fishy')) {
-            return;
-        }
-
-        const channels = this.configManager.getChannels();
-        const channel = channels.find(c => c.id === channelId);
-        const channelName = channel?.name || channelId;
-
-        const message = `${TerminologyMap.UILabels.monitoringSuggestion} for ${channelName}: ${condition.description}. ${TerminologyMap.UserActions.startWatch.buttonText}?`;
-        
-        // 🧠 SMART NOTIFICATION: Check for known dev scenarios
-        const isDevServer = this.isLikelyDevServer(channelId, channelName);
-        const isExcessiveFailures = (condition.data?.consecutiveFailures || 0) > 100;
-        
-        // 🎯 ADAPTIVE UX: Different options for dev servers
-        const actions = isDevServer ? [
-            '🔥 Working Session (8h)',
-            '📅 Daily (24h)', 
-            '🗓️ Weekly (7d)',
-            '🛠️ Dev Mode (Forever)',
-            '⏰ Snooze Options...'
-        ] : [
-            '1h',
-            '12h', 
-            'Forever',
-            'Customize...',
-            'Snooze...'
-        ];
-
-        // 📝 LOG: Channel behavior pattern
-        this.logNotification('warning', message, {
-            channelId,
-            reason: 'fishy_condition',
-            actions,
-            wasSnoozed: false
-        });
-
-        // Show classification hint and option to correct
-        const classificationHint = this.getUserChannelClassification(channelId) 
-            ? '' 
-            : isDevServer 
-                ? ' (detected as dev server)' 
-                : ' (detected as production)';
-
-        const choice = await vscode.window.showWarningMessage(
-            isDevServer 
-                ? `🛠️ Dev Server Alert: ${channelName}${classificationHint} has been offline for ${condition.data?.consecutiveFailures || 0} checks. Choose monitoring level:`
-                : `${message}${classificationHint}`,
-            { modal: false },
-            ...actions,
-            '🏷️ Reclassify...'
-        );
-
-        if (choice && !choice.includes('Snooze')) {
-            if (choice === '🏷️ Reclassify...') {
-                await this.showChannelClassificationDialog(channelId, channelName);
-                // Re-trigger fishy notification with correct classification
-                setTimeout(() => this.handleFishyCondition(channelId, condition), 100);
-                return;
-            } else if (choice === 'Customize...') {
-                await this.showCustomWatchDialog();
-            } else if (choice.includes('Working Session')) {
-                await this.startWatch(8 * 60 * 60 * 1000); // 8 hours in ms
-            } else if (choice.includes('Daily')) {
-                await this.startWatch(24 * 60 * 60 * 1000); // 24 hours in ms  
-            } else if (choice.includes('Weekly')) {
-                await this.startWatch(7 * 24 * 60 * 60 * 1000); // 7 days in ms
-            } else if (choice.includes('Dev Mode')) {
-                await this.startWatch('forever');
-            } else {
-                // Handle standard options
-                const standardChoice = choice.replace(/🔥|📅|🗓️|🛠️/g, '').trim();
-                await this.startWatch(standardChoice.includes('(') ? 
-                    standardChoice.split('(')[1].replace(')', '') as '1h' | '12h' | 'forever' :
-                    choice as '1h' | '12h' | 'forever'
-                );
-            }
-        } else if (choice && choice.includes('Snooze')) {
-            await this.showContextualSnoozeDialog(channelId, 'fishy');
-        }
-    }
 
     private async showCustomWatchDialog() {
         const input = await vscode.window.showInputBox({
@@ -525,14 +435,12 @@ export class NotificationManager {
         }
     }
 
-    private async showSnoozeDialog(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel'): Promise<void> {
+    private async showSnoozeDialog(channelId: string, reason: 'outage' | 'multi-channel'): Promise<void> {
         const channels = this.configManager.getChannels();
         const channel = channels.find(c => c.id === channelId);
         const channelName = channel?.name || channelId;
         
-        const title = reason === 'fishy' 
-            ? `Snooze notifications for ${channelName}` 
-            : reason === 'outage'
+        const title = reason === 'outage'
             ? `Snooze outage notifications for ${channelName}`
             : 'Snooze notifications for affected channels';
         
@@ -598,7 +506,7 @@ export class NotificationManager {
     /**
      * 🎯 Contextual snooze dialog with smart durations
      */
-    private async showContextualSnoozeDialog(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel') {
+    private async showContextualSnoozeDialog(channelId: string, reason: 'outage' | 'multi-channel') {
         const options = this.getContextualSnoozeOptions(channelId, reason);
         
         const channels = this.configManager.getChannels();
@@ -690,7 +598,7 @@ export class NotificationManager {
         return `${channelId}-${reason}`;
     }
 
-    private async setSnooze(channelId: string, duration: number, reason: 'fishy' | 'outage' | 'multi-channel'): Promise<void> {
+    private async setSnooze(channelId: string, duration: number, reason: 'outage' | 'multi-channel'): Promise<void> {
         const key = this.getSnoozeKey(channelId, reason);
         const snooze: SnoozeState = {
             channelId,
@@ -724,7 +632,7 @@ export class NotificationManager {
         }
     }
 
-    private isChannelSnoozed(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel'): boolean {
+    private isChannelSnoozed(channelId: string, reason: 'outage' | 'multi-channel'): boolean {
         const key = this.getSnoozeKey(channelId, reason);
         const snooze = this.snoozeStates.get(key);
         
@@ -823,7 +731,7 @@ export class NotificationManager {
         detail: string | undefined,
         severity: 'info' | 'warning' | 'error',
         channelId: string,
-        reason: 'outage' | 'fishy'
+        reason: 'outage'
     ): Promise<void> {
         const fullMessage = detail ? `${message}\n${detail}` : message;
         

@@ -138,11 +138,6 @@
           "maximum": 100,
           "description": "SLO availability target percentage"
         },
-        "healthWatch.onlyWhenFishy.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable 'only when fishy' mode for automated watch triggers"
-        },
         "healthWatch.internet.enabled": {
           "type": "boolean",
           "default": true,
@@ -176,12 +171,6 @@
           "default": 2,
           "minimum": 1,
           "description": "🚨 Failures needed before marking offline"
-        },
-        "healthWatch.onlyWhenFishy.baselineIntervalSec": {
-          "type": "number",
-          "default": 60,
-          "minimum": 30,
-          "description": "Baseline probe interval in 'only when fishy' mode"
         },
         "healthWatch.script.enabled": {
           "type": "boolean",
@@ -404,6 +393,18 @@
         "category": "Health Watch"
       },
       {
+        "command": "healthWatch.disableChannelInConfig",
+        "title": "Disable Channel (in config)",
+        "category": "Health Watch",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "healthWatch.enableChannelInConfig",
+        "title": "Enable Channel (in config)",
+        "category": "Health Watch",
+        "icon": "$(check)"
+      },
+      {
         "command": "healthWatch.showChannelDetails",
         "title": "Show Channel Details",
         "category": "Health Watch",
@@ -551,14 +552,14 @@
           "group": "inline"
         },
         {
-          "command": "healthWatch.showChannelDetails",
-          "when": "view == healthWatchChannels && viewItem =~ /^channel-.*/",
-          "group": "inline"
-        },
-        {
           "command": "healthWatch.startChannelWatch",
           "when": "view == healthWatchChannels && viewItem =~ /^channel-.*-baseline-.*/",
           "group": "watch"
+        },
+        {
+          "command": "healthWatch.disableChannelInConfig",
+          "when": "view == healthWatchChannels && viewItem =~ /^channel-.*/",
+          "group": "inline@2"
         },
         {
           "command": "healthWatch.stopChannelWatch",

@@ -142,10 +142,6 @@ export interface ReportConfig {
     sloTarget: number;
 }
 
-export interface OnlyWhenFishyConfig {
-    enabled: boolean;
-    baselineIntervalSec: number;
-}
 
 export class ConfigManager {
     private static instance: ConfigManager;
@@ -280,13 +276,6 @@ export class ConfigManager {
         };
     }
 
-    getOnlyWhenFishyConfig(): OnlyWhenFishyConfig {
-        const vsConfig = vscode.workspace.getConfiguration('healthWatch.onlyWhenFishy');
-        return {
-            enabled: vsConfig.get('enabled', true),
-            baselineIntervalSec: vsConfig.get('baselineIntervalSec', 60),
-        };
-    }
 
     isEnabled(): boolean {
         return vscode.workspace.getConfiguration('healthWatch').get('enabled', true);
