@@ -305,7 +305,8 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
     }
 
     private getChannelItems(): ChannelTreeItem[] {
-        const channels = this.configManager.getChannels();
+        // Only show channels that are not explicitly disabled in config
+        const channels = this.configManager.getChannels().filter(ch => ch.enabled !== false);
         const states = this.scheduler.getChannelRunner().getChannelStates();
         const scheduleInfo = this.scheduler.getScheduleInfo();
         
