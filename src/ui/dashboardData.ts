@@ -450,17 +450,47 @@ export function getRecentSamples(
 /**
  * Orchestrates the collection of all dashboard data
  */
+export function parseTimeRangeToDays(range: string | undefined): number {
+    if (!range) return 7;
+    const r = String(range).trim();
+    switch (r) {
+        case '5m': return 5 / (24 * 60);
+        case '1h': return 1 / 24;
+        case '6h': return 6 / 24;
+        case '12h': return 12 / 24;
+        case '1d': return 1;
+        case '7d': return 7;
+        case '30d': return 30;
+        // Legacy formats
+        case '24H': return 1;
+        case '3D': return 3;
+        case '7D': return 7;
+        case '30D': return 30;
+        default:
+            // Try to parse numeric suffix (e.g., '14d' or '14D')
+            const m = r.match(/^(\d+)(d|D)$/);
+            if (m) return parseInt(m[1], 10);
+            return 7;
+    }
+}
+
 export function generateDashboardData(
     channels: ChannelDefinition[],
     states: Map<string, ChannelState>,
     currentWatch: WatchSession | undefined,
-    storageManager: StorageManager
+    storageManager: StorageManager,
+    options?: { timeRange?: string }
 ): DashboardData {
     const metrics = generateMetricsData(channels, states, storageManager);
     const recentSamples = getRecentSamples(channels, 20, storageManager);
-    const timelineData = generateTimelineData(channels, 7, storageManager);
-    const heatmapData = generateHourlyHeatmapData(channels, 3, storageManager);
-    const incidents = generateIncidentsData(channels, 7, storageManager);
+    // Determine days for timeline and heatmap based on requested timeRange
+    const days = parseTimeRangeToDays(options?.timeRange || undefined);
+    const timelineDays = Math.max(1, Math.round(days));
+    const heatmapDays = Math.max( (days <= 0 ? 1/24 : days),  days);
+
+    const timelineData = generateTimelineData(channels, timelineDays, storageManager);
+    const heatmapData = generateHourlyHeatmapData(channels, heatmapDays, storageManager);
+    const incidents = generateIncidentsData(channels, timelineDays, storageManager);
     
     return {
         channels,

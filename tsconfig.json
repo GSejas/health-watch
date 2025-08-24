@@ -21,6 +21,7 @@
 		"test/**/*",
 		"node_modules",
 		"out",
-		"src/ui/react/**/*"
+		"src/ui/react/**/*",
+		"src/mcp/archive/**/*"
 	]
 }

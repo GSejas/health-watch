@@ -17,6 +17,12 @@ export interface FishyCondition {
     threshold: number;
     windowMs: number;
     description: string;
+    data?: {
+        consecutiveFailures?: number;
+        avgLatency?: number;
+        dnsErrors?: number;
+        [key: string]: any;
+    };
 }
 
 export class Scheduler extends EventEmitter {

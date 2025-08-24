@@ -5,6 +5,60 @@ import { Scheduler } from '../runner/scheduler';
 import { ChannelInfo } from '../types';
 import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
 
+/**
+ * ChannelTreeItem
+ *
+ * File header:
+ *   /c:/Users/delir/Documents/repos/lossy/health-watch/src/ui/treeView.ts
+ *
+ * Summary:
+ *   A VS Code TreeItem that represents a monitored "channel" in the extension's tree view.
+ *   This class wraps a ChannelInfo model and computes presentation details used by the UI:
+ *   - label (inherited via TreeItem constructor)
+ *   - tooltip (multi-line information)
+ *   - description (compact, emoji-enhanced status text)
+ *   - iconPath (ThemeIcon selected by priority and state)
+ *   - contextValue (composite string used to control context menu actions)
+ *
+ * Behavior:
+ *   - The primary identity for the tree item is channelInfo.name || channelInfo.id.
+ *   - Tooltip is built as multiple lines and contains name/id, type, state, optional description,
+ *     last latency (if available), next probe countdown (relative seconds or "Now"), and a paused
+ *     status marker when the channel is paused.
+ *   - Description is a single-line, space-delimited summary combining:
+ *       * A state indicator (paused/running/emoji by connectivity state)
+ *       * A latency display that uses check/warning/error emojis depending on thresholds
+ *       * A next-probe countdown (seconds) or immediate indicator when due
+ *     The description is intended for quick at-a-glance readability in the tree view.
+ *   - Icon selection is priority-driven:
+ *       * paused state overrides all and maps to a pause icon/color
+ *       * running maps to a spinning sync icon
+ *       * otherwise the connectivity state (online/offline/unknown/default) maps to semantic icons
+ *     ThemeColors are used so icons adapt to editor themes.
+ *   - contextValue is a deterministic, hyphen-separated string that encodes:
+ *       ['channel', primary-state (paused|running|idle), connectivity-state (online|offline|unknown|...), channel-type]
+ *     Examples: "channel-idle-online-https", "channel-paused-offline-tcp".
+ *     This enables fine-grained conditional context menu contributions in package.json.
+ *
+ * Constructor:
+ *   @param channelInfo - The source data describing the channel (id, name, type, state, latencies, probes, flags).
+ *   @param collapsibleState - Optional vscode.TreeItemCollapsibleState (defaults to None).
+ *
+ * Notes and implementation details:
+ *   - Time calculations for nextProbe use Date arithmetic; nextProbe values are treated as epoch ms.
+ *   - Latency thresholds used in the description are:
+ *       * < 100ms : success/check mark
+ *       * < 300ms : warning
+ *       * >= 300ms : error
+ *   - TerminologyMap is referenced for localized/centralized labels and icon strings; it is assumed to be available
+ *     in the surrounding module.
+ *   - All presentation logic is pure derived data from channelInfo and is safe to call repeatedly for UI refreshes.
+ *
+ * Example:
+ *   const item = new ChannelTreeItem(channelInfo, vscode.TreeItemCollapsibleState.None);
+ *
+ * @public
+ */
 export class ChannelTreeItem extends vscode.TreeItem {
     constructor(
         public readonly channelInfo: ChannelInfo,
@@ -147,10 +201,22 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
     private scheduler: Scheduler;
     private refreshTimer?: NodeJS.Timeout;
 
+    // Map channelId -> location in config file { uri, line }
+    private configLocations: Map<string, { uri: vscode.Uri; line: number }> = new Map();
+    private disposables: vscode.Disposable[] = [];
+
     constructor(scheduler: Scheduler) {
         this.scheduler = scheduler;
         this.setupEventListeners();
         this.startPeriodicRefresh();
+        // Parse config immediately and register command to open channel config
+        this.parseConfigFile().catch(() => {});
+
+        // Register command to open a channel's config location
+        const cmd = vscode.commands.registerCommand('healthWatch.openChannelConfig', async (channelId: string) => {
+            await this.openChannelConfig(channelId);
+        });
+        this.disposables.push(cmd);
     }
 
     private setupEventListeners() {
@@ -167,6 +233,21 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
                 this.refresh();
             }
         });
+
+        // Re-parse the config when the config file is opened or changed
+        this.disposables.push(vscode.workspace.onDidOpenTextDocument(async (doc) => {
+            if (doc && doc.fileName.endsWith('.healthwatch.json')) {
+                await this.parseConfigFile();
+                this.refresh();
+            }
+        }));
+
+        this.disposables.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
+            if (e.document && e.document.fileName.endsWith('.healthwatch.json')) {
+                await this.parseConfigFile();
+                this.refresh();
+            }
+        }));
     }
 
     private startPeriodicRefresh() {
@@ -218,8 +299,82 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
                 isRunning: this.scheduler.getChannelRunner().isChannelRunning(channel.id)
             };
             
-            return new ChannelTreeItem(channelInfo);
+            const item = new ChannelTreeItem(channelInfo);
+            // Make the tree item clickable to open the channel config at the stored location
+            item.command = {
+                command: 'healthWatch.openChannelConfig',
+                title: 'Open Channel Config',
+                arguments: [channel.id]
+            };
+
+            return item;
         });
+    }
+
+    /**
+     * Parse workspace .healthwatch.json and cache a mapping of channelId -> {uri, line}
+     * Attempts to locate the channel object's starting line by finding the "id" property
+     * and scanning backwards for the opening '{'. This is heuristic but reliable for
+     * standard formatted JSON files.
+     */
+    private async parseConfigFile(): Promise<void> {
+        this.configLocations.clear();
+
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) return;
+
+        const configUri = vscode.Uri.joinPath(workspaceFolder.uri, '.healthwatch.json');
+        try {
+            const doc = await vscode.workspace.openTextDocument(configUri);
+            const text = doc.getText();
+            const lines = text.split(/\r?\n/);
+
+            const channels = this.configManager.getChannels();
+            for (const ch of channels) {
+                const needle = `"id": "${ch.id}"`;
+                const idx = lines.findIndex(l => l.includes(needle));
+                if (idx === -1) {
+                    this.configLocations.delete(ch.id);
+                    continue;
+                }
+
+                // scan backwards to find a preceding line that starts an object
+                let start = idx;
+                while (start > 0 && !lines[start].trim().startsWith('{')) {
+                    start--;
+                }
+
+                const startLine = Math.max(1, start + 1); // 1-based line number
+                this.configLocations.set(ch.id, { uri: configUri, line: startLine });
+            }
+        } catch (error) {
+            // ignore - file may not exist; leave map empty
+            this.configLocations.clear();
+        }
+    }
+
+    /**
+     * Open the configuration file at the cached line for a channel, or fallback to opening the config file
+     */
+    async openChannelConfig(channelId: string): Promise<void> {
+        const loc = this.configLocations.get(channelId);
+        if (loc) {
+            try {
+                const doc = await vscode.workspace.openTextDocument(loc.uri);
+                const editor = await vscode.window.showTextDocument(doc);
+                const line = Math.max(0, loc.line - 1);
+                const range = new vscode.Range(line, 0, line, 0);
+                editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+                editor.selection = new vscode.Selection(range.start, range.start);
+                return;
+            } catch (err) {
+                // fallback below
+            }
+        }
+
+        // fallback: open config file (create if missing)
+        await this.openConfigurationFile();
+        vscode.window.showInformationMessage(`Could not locate channel '${channelId}' exact position in .healthwatch.json; opened config instead.`);
     }
 
     async runChannel(channelId: string): Promise<void> {
@@ -382,163 +537,256 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
     }
     
     /**
-     * Show detailed channel information
+     * Show detailed channel information using proper React architecture
      */
     async showChannelDetails(channelId: string): Promise<void> {
         try {
+            // Defensive: if channelId is falsy or invalid, prompt the user to pick one
+            let targetId = channelId;
             const channels = this.configManager.getChannels();
-            const channel = channels.find(ch => ch.id === channelId);
-            const state = this.scheduler.getChannelRunner().getChannelStates().get(channelId);
-            const scheduleInfo = this.scheduler.getScheduleInfo().get(channelId);
-            
-            if (!channel) {
-                throw new Error(`Channel '${channelId}' not found`);
+
+            if (!targetId || !channels.find(ch => ch.id === targetId)) {
+                if (!channels || channels.length === 0) {
+                    vscode.window.showWarningMessage('No channels configured');
+                    return;
+                }
+
+                const picks = channels.map(ch => ({ label: ch.name || ch.id, description: ch.type, channelId: ch.id }));
+                const sel = await vscode.window.showQuickPick(picks, { placeHolder: 'Select channel to view details' });
+                if (!sel) return;
+                targetId = sel.channelId;
             }
-            
-            // Create detailed information panel
-            const panel = vscode.window.createWebviewPanel(
-                'channelDetails',
-                `Channel Details: ${channel.name || channel.id}`,
-                vscode.ViewColumn.Two,
-                { enableScripts: false }
-            );
-            
-            panel.webview.html = this.generateChannelDetailsHTML(channel, state, scheduleInfo);
-            
+
+            const channel = channels.find(ch => ch.id === targetId);
+            const state = this.scheduler.getChannelRunner().getChannelStates().get(targetId as string);
+            const scheduleInfo = this.scheduler.getScheduleInfo().get(targetId as string);
+            const globalDefaults = this.configManager.getDefaults();
+
+            if (!channel) {
+                vscode.window.showErrorMessage(`Channel '${targetId}' not found`);
+                return;
+            }
+
+            // Create detailed information panel with proper React architecture
+            let panel: vscode.WebviewPanel;
+            try {
+                panel = vscode.window.createWebviewPanel(
+                    'channelDetails',
+                    `Channel Details: ${channel.name || channel.id}`,
+                    vscode.ViewColumn.Two,
+                    { 
+                        enableScripts: true,
+                        retainContextWhenHidden: true
+                    }
+                );
+            } catch (err) {
+                console.error('Failed to create webview panel for channel details:', err);
+                vscode.window.showErrorMessage('Failed to open channel details panel (webview unavailable)');
+                return;
+            }
+
+            // Use proper HTML generation with React and CSS security
+            try {
+                panel.webview.html = this.generateChannelDetailsHTML(channel, state, scheduleInfo, globalDefaults);
+            } catch (err) {
+                console.error('Failed to generate channel details HTML:', err);
+                panel.dispose();
+                vscode.window.showErrorMessage('Failed to render channel details');
+                return;
+            }
+
+            // Handle messages from React components
+            panel.webview.onDidReceiveMessage(async (message) => {
+                switch (message.command) {
+                    case 'runChannel':
+                        await this.runChannel(message.channelId || targetId as string);
+                        this.refreshChannelDetailsPanel(panel, targetId as string);
+                        break;
+                    case 'pauseChannel':
+                        this.pauseChannel(message.channelId || targetId as string);
+                        this.refreshChannelDetailsPanel(panel, targetId as string);
+                        break;
+                    case 'resumeChannel':
+                        this.resumeChannel(message.channelId || targetId as string);
+                        this.refreshChannelDetailsPanel(panel, targetId as string);
+                        break;
+                    case 'openConfig':
+                        await this.openConfigurationFile();
+                        break;
+                    case 'viewLogs':
+                        await this.showChannelLogs(message.channelId || targetId as string);
+                        break;
+                    case 'exportData':
+                        await this.exportChannelData(message.channelId || targetId as string);
+                        break;
+                }
+            });
+
         } catch (error) {
+            console.error('Failed to show channel details:', error);
             vscode.window.showErrorMessage(`Failed to show channel details: ${error}`);
         }
     }
     
-    private generateChannelDetailsHTML(channel: any, state: any, schedule: any): string {
-        const stateIcon = state?.state === 'online' ? '🟢' :
-                         state?.state === 'offline' ? '🔴' : '🟡';
+    /**
+     * Refresh the channel details panel with updated data
+     */
+    private refreshChannelDetailsPanel(panel: vscode.WebviewPanel, channelId: string): void {
+        const channels = this.configManager.getChannels();
+        const channel = channels.find(ch => ch.id === channelId);
+        const state = this.scheduler.getChannelRunner().getChannelStates().get(channelId);
+        const scheduleInfo = this.scheduler.getScheduleInfo().get(channelId);
+        const globalDefaults = this.configManager.getDefaults();
         
-        return `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {
-                        font-family: var(--vscode-font-family);
-                        color: var(--vscode-foreground);
-                        background: var(--vscode-editor-background);
-                        padding: 20px;
-                        line-height: 1.5;
-                    }
-                    .header {
-                        border-bottom: 2px solid var(--vscode-panel-border);
-                        padding-bottom: 15px;
-                        margin-bottom: 20px;
-                    }
-                    .status {
-                        font-size: 24px;
-                        font-weight: bold;
-                        margin-bottom: 10px;
-                    }
-                    .section {
-                        background: var(--vscode-textBlockQuote-background);
-                        border-radius: 8px;
-                        padding: 15px;
-                        margin-bottom: 15px;
-                        border-left: 4px solid var(--vscode-charts-blue);
-                    }
-                    .section h3 {
-                        margin: 0 0 10px 0;
-                        color: var(--vscode-charts-blue);
-                    }
-                    .property {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 8px 0;
-                        padding: 4px 0;
-                        border-bottom: 1px dotted var(--vscode-panel-border);
-                    }
-                    .property:last-child {
-                        border-bottom: none;
-                    }
-                    .label { font-weight: bold; }
-                    .value { color: var(--vscode-descriptionForeground); }
-                    .online { color: var(--vscode-charts-green); }
-                    .offline { color: var(--vscode-charts-red); }
-                    .unknown { color: var(--vscode-charts-yellow); }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="status">
-                        ${stateIcon} ${channel.name || channel.id}
-                    </div>
-                    <div class="${state?.state || 'unknown'}">
-                        Status: ${(state?.state || 'unknown').toUpperCase()}
-                    </div>
-                </div>
+        if (channel) {
+            panel.webview.html = this.generateChannelDetailsHTML(channel, state, scheduleInfo, globalDefaults);
+        }
+    }
+    
+    private generateChannelDetailsHTML(channel: any, state: any, schedule: any, globalDefaults: any = {}): string {
+        const { generateChannelDetailsView } = require('./views/channelDetailsView');
+        const { DASHBOARD_CSS } = require('./styles/index');
+        
+        // Generate nonce for CSP compliance
+        const nonce = this.generateNonce();
+        
+        // Create view data following dashboard architecture
+        const viewData = {
+            channel,
+            state,
+            schedule,
+            globalDefaults,
+            baseCSS: DASHBOARD_CSS,
+            baseScripts: '', // No base scripts needed for channel details
+            nonce,
+            cspSource: 'vscode-webview:', // Standard VS Code webview CSP source
+            reactBundleUri: undefined // We'll implement this if needed
+        };
+        
+        return generateChannelDetailsView(viewData);
+    }
+    
+    /**
+     * Generate a nonce for CSP compliance
+     */
+    private generateNonce(): string {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
+    }
+    
+    
+    /**
+     * Show channel logs in output channel
+     */
+    private async showChannelLogs(channelId: string): Promise<void> {
+        try {
+            const storage = StorageManager.getInstance();
+            const channelState = storage.getChannelState(channelId);
+            const samples = channelState.samples.slice(-100); // Get last 100 samples
+            
+            const outputChannel = vscode.window.createOutputChannel(`Health Watch: ${channelId}`);
+            outputChannel.clear();
+            
+            outputChannel.appendLine(`Channel Logs: ${channelId}`);
+            outputChannel.appendLine(`Generated: ${new Date().toLocaleString()}`);
+            outputChannel.appendLine('='.repeat(50));
+            
+            if (samples.length === 0) {
+                outputChannel.appendLine('No samples found for this channel.');
+            } else {
+                outputChannel.appendLine(`Showing last ${samples.length} samples:\n`);
                 
-                <div class="section">
-                    <h3>🔧 Configuration</h3>
-                    <div class="property">
-                        <span class="label">ID:</span>
-                        <span class="value">${channel.id}</span>
-                    </div>
-                    <div class="property">
-                        <span class="label">Type:</span>
-                        <span class="value">${channel.type}</span>
-                    </div>
-                    <div class="property">
-                        <span class="label">Target:</span>
-                        <span class="value">${channel.url || channel.hostname || channel.target || 'N/A'}</span>
-                    </div>
-                    <div class="property">
-                        <span class="label">Enabled:</span>
-                        <span class="value">${channel.enabled !== false ? '✓ Yes' : '✗ No'}</span>
-                    </div>
-                    ${channel.intervalSec ? `
-                    <div class="property">
-                        <span class="label">Interval:</span>
-                        <span class="value">${channel.intervalSec}s</span>
-                    </div>
-                    ` : ''}
-                </div>
+                samples.reverse().forEach((sample: any, index: number) => {
+                    const timestamp = new Date(sample.timestamp).toLocaleString();
+                    const status = sample.success ? '✅ SUCCESS' : '❌ FAILURE';
+                    const latency = sample.latencyMs ? `${sample.latencyMs}ms` : 'N/A';
+                    
+                    outputChannel.appendLine(`[${timestamp}] ${status} - ${latency}`);
+                    
+                    if (sample.error) {
+                        outputChannel.appendLine(`  Error: ${sample.error}`);
+                    }
+                    
+                    if (sample.details) {
+                        outputChannel.appendLine(`  Details: ${JSON.stringify(sample.details)}`);
+                    }
+                    
+                    if (index < samples.length - 1) {
+                        outputChannel.appendLine('');
+                    }
+                });
+            }
+            
+            outputChannel.show();
+            
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to show channel logs: ${error}`);
+        }
+    }
+    
+    /**
+     * Export channel data as JSON
+     */
+    private async exportChannelData(channelId: string): Promise<void> {
+        try {
+            const storage = StorageManager.getInstance();
+            const channelState = storage.getChannelState(channelId);
+            const samples = channelState.samples.slice(-1000); // Get last 1000 samples
+            const channels = this.configManager.getChannels();
+            const channel = channels.find(ch => ch.id === channelId);
+            
+            const exportData = {
+                channel: channel,
+                exportedAt: new Date().toISOString(),
+                sampleCount: samples.length,
+                samples: samples
+            };
+            
+            const exportJson = JSON.stringify(exportData, null, 2);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+            const filename = `health-watch-${channelId}-${timestamp}.json`;
+            
+            // Save to workspace or show save dialog
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (workspaceFolder) {
+                const exportPath = vscode.Uri.joinPath(workspaceFolder.uri, filename);
+                await vscode.workspace.fs.writeFile(exportPath, Buffer.from(exportJson, 'utf8'));
                 
-                <div class="section">
-                    <h3>📈 Current State</h3>
-                    <div class="property">
-                        <span class="label">State:</span>
-                        <span class="value ${state?.state || 'unknown'}">${(state?.state || 'unknown').toUpperCase()}</span>
-                    </div>
-                    ${state?.lastSample ? `
-                    <div class="property">
-                        <span class="label">Last Latency:</span>
-                        <span class="value">${state.lastSample.latencyMs || 'N/A'}ms</span>
-                    </div>
-                    <div class="property">
-                        <span class="label">Last Check:</span>
-                        <span class="value">${new Date(state.lastSample.timestamp).toLocaleString()}</span>
-                    </div>
-                    <div class="property">
-                        <span class="label">Success:</span>
-                        <span class="value">${state.lastSample.ok ? '✓ Yes' : '✗ No'}</span>
-                    </div>
-                    ` : ''}
-                </div>
+                const action = await vscode.window.showInformationMessage(
+                    `Channel data exported to ${filename}`,
+                    'Open File',
+                    'Show in Explorer'
+                );
                 
-                <div class="section">
-                    <h3>⏰ Schedule</h3>
-                    <div class="property">
-                        <span class="label">Paused:</span>
-                        <span class="value">${schedule?.isPaused ? '✓ Yes' : '✗ No'}</span>
-                    </div>
-                    ${schedule?.nextRun ? `
-                    <div class="property">
-                        <span class="label">Next Probe:</span>
-                        <span class="value">${new Date(schedule.nextRun).toLocaleString()}</span>
-                    </div>
-                    ` : ''}
-                </div>
-            </body>
-            </html>
-        `;
+                if (action === 'Open File') {
+                    const document = await vscode.workspace.openTextDocument(exportPath);
+                    await vscode.window.showTextDocument(document);
+                } else if (action === 'Show in Explorer') {
+                    await vscode.commands.executeCommand('revealFileInOS', exportPath);
+                }
+            } else {
+                // Show save dialog if no workspace
+                const saveUri = await vscode.window.showSaveDialog({
+                    defaultUri: vscode.Uri.file(filename),
+                    filters: {
+                        'JSON files': ['json'],
+                        'All files': ['*']
+                    }
+                });
+                
+                if (saveUri) {
+                    await vscode.workspace.fs.writeFile(saveUri, Buffer.from(exportJson, 'utf8'));
+                    vscode.window.showInformationMessage('Channel data exported successfully!');
+                }
+            }
+            
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to export channel data: ${error}`);
+        }
     }
 
     dispose() {
@@ -546,5 +794,6 @@ export class ChannelTreeProvider implements vscode.TreeDataProvider<ChannelTreeI
             clearInterval(this.refreshTimer);
         }
         this._onDidChangeTreeData.dispose();
+    for (const d of this.disposables) { d.dispose(); }
     }
 }

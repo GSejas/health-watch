@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import { HealthWatchAPIImpl } from '../../src/api';
+import { HealthWatchAPIImpl } from '../../src/api.ts';
 
 describe('Activation smoke tests', () => {
     it('API should not throw TypeError when scheduler is null and should indicate not-ready', async () => {

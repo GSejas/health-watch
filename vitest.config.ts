@@ -3,9 +3,13 @@ import { resolve } from 'path';
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     setupFiles: ['./test/setup.ts'],
     globals: true,
+    // Ensure we use TypeScript source files for tests
+    transformMode: {
+      ssr: [/\.[jt]sx?$/]
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -47,6 +51,10 @@ export default defineConfig({
       '@test': resolve(__dirname, './test'),
       'vscode': resolve(__dirname, './test/_mocks/vscode/index.js')
     }
+  },
+  define: {
+    // Define global constants for tests
+    'process.env.NODE_ENV': '"test"'
   },
   esbuild: {
     target: 'node18'

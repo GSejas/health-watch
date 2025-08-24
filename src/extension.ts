@@ -3,6 +3,7 @@ import { ConfigManager } from './config';
 import { StorageManager } from './storage';
 import { GuardManager } from './guards';
 import { Scheduler } from './runner/scheduler';
+import { CoordinatedScheduler } from './coordination/coordinatedScheduler';
 import { StatusBarManager } from './ui/statusBar';
 import { ChannelTreeProvider } from './ui/treeView';
 import { StatusTreeDataProvider } from './ui/statusTreeView';
@@ -12,6 +13,9 @@ import { DashboardManager } from './ui/dashboard';
 import { HealthWatchAPIImpl } from './api';
 import { DataExporter } from './export';
 import { ReportGenerator } from './report';
+import { InternetCheckService } from './services/internetCheckService';
+import { MultiWindowCoordinationManager } from './coordination/multiWindowCoordination';
+// import { SimpleHealthWatchMCPServer } from './mcp/simpleMCPServer';
 
 let healthWatchAPI: HealthWatchAPIImpl;
 
@@ -59,11 +63,20 @@ async function initializeAsync(
     await storageManager.whenReady();
     console.log('Storage is ready, initializing components...');
     
+    // Initialize coordination manager
+    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const coordinationManager = new MultiWindowCoordinationManager(context, workspacePath);
+    await coordinationManager.startCoordination();
+    
+    // Initialize internet check service
+    const internetService = new InternetCheckService(coordinationManager, storageManager);
+    await internetService.start();
+    
     // Now safely initialize scheduler and runners
     const scheduler = new Scheduler();
     
-    // Initialize UI components
-    const statusBarManager = new StatusBarManager(scheduler);
+    // Initialize UI components with internet service
+    const statusBarManager = new StatusBarManager(scheduler, internetService);
     const treeProvider = new ChannelTreeProvider(scheduler);
     const notificationManager = new NotificationManager(scheduler);
     const dashboardManager = new DashboardManager(scheduler);
@@ -77,6 +90,25 @@ async function initializeAsync(
     
     // Initialize public API
     const healthWatchAPIInstance = new HealthWatchAPIImpl(scheduler);
+    
+    // Initialize MCP server (optional - only if enabled in settings)
+    // let mcpServer: SimpleHealthWatchMCPServer | undefined;
+    // const mcpEnabled = vscode.workspace.getConfiguration('healthWatch.mcp').get('enabled', false);
+    // if (mcpEnabled) {
+    //     try {
+    //         console.log('🤖 Initializing Health Watch MCP Server...');
+    //         // mcpServer = new SimpleHealthWatchMCPServer({
+    //             healthWatchAPI: healthWatchAPIInstance,
+    //             scheduler,
+    //             internetService
+    //         });
+    //         // Note: MCP server will be started via command, not automatically
+    //         console.log('🤖 Health Watch MCP Server initialized (not started)');
+    //     } catch (error) {
+    //         console.error('🤖 Failed to initialize MCP Server:', error);
+    //         vscode.window.showWarningMessage('Failed to initialize Health Watch MCP Server. MCP features will be disabled.');
+    //     }
+    // }
     
     // Register tree views
     const treeView = vscode.window.createTreeView('healthWatchChannels', {
@@ -95,7 +127,7 @@ async function initializeAsync(
     });
     
     // Register commands
-    registerCommands(context, scheduler, healthWatchAPIInstance, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, statusBarManager, incidentsProvider);
+    registerCommands(context, scheduler, healthWatchAPIInstance, dataExporter, reportGenerator, treeProvider, notificationManager, dashboardManager, statusBarManager, incidentsProvider, internetService);
     
     // Set context for when clauses
     vscode.commands.executeCommand('setContext', 'healthWatch.enabled', configManager.isEnabled());
@@ -167,7 +199,9 @@ function registerCommands(
     notificationManager: NotificationManager,
     dashboardManager: DashboardManager,
     statusBarManager?: StatusBarManager,
-    incidentsProvider?: IncidentsTreeProvider
+    incidentsProvider?: IncidentsTreeProvider,
+    internetService?: InternetCheckService,
+    // mcpServer?: SimpleHealthWatchMCPServer
 ) {
     const commands: Array<[string, (...args: any[]) => any]> = [
         ['healthWatch.startWatch', async (duration?: string) => {
@@ -242,6 +276,46 @@ function registerCommands(
         ['healthWatch.stopChannel', (item) => {
             if (item && item.channelInfo) {
                 treeProvider.stopChannel(item.channelInfo.id);
+            }
+        }],
+        
+        ['healthWatch.showChannelDetails', async (itemOrId?: any) => {
+            try {
+                let channelId: string | undefined;
+
+                // Accept multiple shapes: TreeItem-like, raw channel id string, or an object with id/channelId
+                if (!itemOrId) {
+                    // No argument: prompt user to pick a channel
+                    const channels = treeProvider['configManager'].getChannels?.() || [];
+                    if (channels.length === 0) {
+                        vscode.window.showWarningMessage('No channels configured');
+                        return;
+                    }
+                    const picks = channels.map((ch: any) => ({ label: ch.name || ch.id, description: ch.type, channelId: ch.id }));
+                    const sel = await vscode.window.showQuickPick(picks, { placeHolder: 'Select channel to view details' });
+                    if (!sel) return;
+                    channelId = sel.channelId;
+                } else if (typeof itemOrId === 'string') {
+                    channelId = itemOrId;
+                } else if (itemOrId.channelInfo && itemOrId.channelInfo.id) {
+                    channelId = itemOrId.channelInfo.id;
+                } else if (itemOrId.id) {
+                    channelId = itemOrId.id;
+                } else if (itemOrId.channelId) {
+                    channelId = itemOrId.channelId;
+                } else {
+                    // Unexpected shape: log and attempt to stringify for debugging
+                    console.error('healthWatch.showChannelDetails received unexpected argument:', itemOrId);
+                    vscode.window.showErrorMessage('Could not determine channel to show details for (unexpected argument type)');
+                    return;
+                }
+
+                if (channelId) {
+                    await treeProvider.showChannelDetails(channelId);
+                }
+            } catch (error) {
+                console.error('Error in healthWatch.showChannelDetails command:', error);
+                vscode.window.showErrorMessage(`Failed to show channel details: ${error}`);
             }
         }],
         
@@ -456,22 +530,338 @@ function registerCommands(
 
         ['healthWatch.runInternetCheck', async () => {
             try {
-                // Find internet channel and run it immediately
-                const channels = api.listChannels();
-                const internetChannel = channels.find(ch => 
-                    ch.id === 'internet' || 
-                    ch.name?.toLowerCase().includes('internet') ||
-                    ch.type === 'https'
-                );
-                
-                if (internetChannel) {
-                    await api.runChannelNow(internetChannel.id);
-                    vscode.window.showInformationMessage(`Internet check completed for ${internetChannel.name || internetChannel.id}`);
+                if (internetService) {
+                    const status = await internetService.runCheckNow();
+                    const statusText = status.status === 'online' 
+                        ? `Online (${status.latencyMs}ms)` 
+                        : status.status;
+                    vscode.window.showInformationMessage(`Internet check: ${statusText}`);
                 } else {
-                    vscode.window.showWarningMessage('No internet channel found to test');
+                    vscode.window.showWarningMessage('Internet service not available');
                 }
             } catch (error) {
                 vscode.window.showErrorMessage(`Internet check failed: ${error}`);
+            }
+        }],
+
+        ['healthWatch.internetOptions', async () => {
+            if (!internetService) {
+                vscode.window.showWarningMessage('Internet service not available');
+                return;
+            }
+
+            const currentStatus = internetService.getCurrentStatus();
+            const items = [
+                {
+                    label: '$(sync) Run Check Now',
+                    description: 'Check internet connectivity immediately'
+                },
+                {
+                    label: '$(gear) Internet Settings',
+                    description: 'Configure internet monitoring settings'
+                },
+                {
+                    label: '$(eye-closed) Disable Internet Status',
+                    description: 'Hide internet status from status bar'
+                },
+                {
+                    label: '$(info) Connection Details',
+                    description: `Target: ${currentStatus.target || 'Unknown'}, Status: ${currentStatus.status}`
+                }
+            ];
+
+            const selection = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Internet Status Options',
+                title: `Internet: ${currentStatus.status === 'online' 
+                    ? `Online (${currentStatus.latencyMs}ms)` 
+                    : currentStatus.status}`
+            });
+
+            if (!selection) return;
+
+            switch (selection.label) {
+                case '$(sync) Run Check Now':
+                    await vscode.commands.executeCommand('healthWatch.runInternetCheck');
+                    break;
+                case '$(gear) Internet Settings':
+                    await vscode.commands.executeCommand('workbench.action.openSettings', 'healthWatch.internet');
+                    break;
+                case '$(eye-closed) Disable Internet Status':
+                    await vscode.workspace.getConfiguration('healthWatch.internet').update('enabled', false, vscode.ConfigurationTarget.Global);
+                    vscode.window.showInformationMessage('Internet status disabled');
+                    break;
+                case '$(info) Connection Details':
+                    const details = `Status: ${currentStatus.status}
+Target: ${currentStatus.target || 'Unknown'}
+Check Count: ${currentStatus.checkCount}
+Consecutive Failures: ${currentStatus.consecutiveFailures}
+${currentStatus.latencyMs ? `Latency: ${currentStatus.latencyMs}ms` : ''}
+${currentStatus.error ? `Error: ${currentStatus.error}` : ''}
+Last Check: ${new Date(currentStatus.timestamp).toLocaleString()}`;
+                    
+                    vscode.window.showInformationMessage(details, { modal: true });
+                    break;
+            }
+        }],
+
+        ['healthWatch.showCoordinationDetails', async () => {
+            if (!(scheduler instanceof CoordinatedScheduler)) {
+                vscode.window.showInformationMessage('Multi-window coordination is not enabled');
+                return;
+            }
+
+            const coordinationManager = (scheduler as any)['coordinationManager'];
+            if (!coordinationManager) {
+                vscode.window.showWarningMessage('Coordination manager not available');
+                return;
+            }
+
+            const isEnabled = scheduler instanceof CoordinatedScheduler 
+                ? scheduler.isCoordinationEnabled() 
+                : false;
+            const isLeader = coordinationManager.isLeader?.() || false;
+            const hasLock = coordinationManager.hasLock?.() || false;
+            const instanceId = coordinationManager.getInstanceId?.() || 'unknown';
+
+            let status = '';
+            if (!isEnabled) {
+                status = 'Single Window Mode';
+            } else {
+                status = isLeader 
+                    ? (hasLock ? 'Master (Leader with Lock)' : 'Leader (No Lock)')
+                    : 'Follower';
+            }
+
+            const items = [
+                {
+                    label: '$(info) Coordination Status',
+                    description: status
+                },
+                {
+                    label: '$(account) Instance ID', 
+                    description: instanceId.substring(0, 16) + '...'
+                },
+                {
+                    label: '$(sync) Force Election',
+                    description: 'Trigger new leader election'
+                },
+                {
+                    label: '$(settings-gear) Coordination Settings',
+                    description: 'Open coordination settings'
+                }
+            ];
+
+            // Add lock-specific items for leaders
+            if (isLeader && isEnabled) {
+                items.push({
+                    label: hasLock ? '$(lock) Lock Acquired' : '$(unlock) Lock Released',
+                    description: hasLock 
+                        ? 'This window is actively monitoring'
+                        : 'Trying to acquire monitoring lock...'
+                });
+            }
+
+            const selection = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Multi-Window Coordination Details',
+                title: `Health Watch - ${status}`
+            });
+
+            if (!selection) return;
+
+            switch (selection.label) {
+                case '$(sync) Force Election':
+                    if (coordinationManager.forceElection) {
+                        coordinationManager.forceElection();
+                        vscode.window.showInformationMessage('Leader election triggered');
+                    } else {
+                        vscode.window.showWarningMessage('Force election not supported');
+                    }
+                    break;
+                case '$(settings-gear) Coordination Settings':
+                    await vscode.commands.executeCommand('workbench.action.openSettings', 'healthWatch.coordination');
+                    break;
+                default:
+                    // For info items, show detailed tooltip
+                    let details = `Coordination Status: ${status}\n`;
+                    details += `Instance ID: ${instanceId}\n`;
+                    
+                    if (isEnabled) {
+                        details += `Role: ${isLeader ? 'Leader' : 'Follower'}\n`;
+                        if (isLeader) {
+                            details += `Lock: ${hasLock ? 'Acquired ✅' : 'Released ⚠️'}\n`;
+                        }
+                    }
+
+                    const nextElectionTime = coordinationManager.getNextElectionTime?.();
+                    if (nextElectionTime) {
+                        const remaining = Math.max(0, nextElectionTime - Date.now());
+                        if (remaining > 0) {
+                            const seconds = Math.ceil(remaining / 1000);
+                            details += `Next election: ${seconds}s\n`;
+                        }
+                    }
+
+                    const lastHeartbeat = coordinationManager.getLastHeartbeat?.();
+                    if (lastHeartbeat) {
+                        const heartbeatAge = Math.floor((Date.now() - lastHeartbeat) / 1000);
+                        details += `Last heartbeat: ${heartbeatAge}s ago\n`;
+                    }
+
+                    vscode.window.showInformationMessage(details.trim(), { modal: true });
+                    break;
+            }
+        }],
+
+        // // MCP Server Commands
+        // ['healthWatch.mcp.start', async () => {
+        //     if (!mcpServer) {
+        //         vscode.window.showWarningMessage('MCP Server is not enabled. Enable it in settings: healthWatch.mcp.enabled');
+        //         return;
+        //     }
+            
+        //     try {
+        //         await mcpServer.start();
+        //         vscode.window.showInformationMessage('Health Watch MCP Server started. You can now use AI assistants to interact with Health Watch.');
+        //     } catch (error) {
+        //         vscode.window.showErrorMessage(`Failed to start MCP Server: ${error}`);
+        //     }
+        // }],
+
+        // ['healthWatch.mcp.stop', async () => {
+        //     if (!mcpServer) {
+        //         vscode.window.showWarningMessage('MCP Server is not available');
+        //         return;
+        //     }
+            
+        //     try {
+        //         await mcpServer.stop();
+        //         vscode.window.showInformationMessage('Health Watch MCP Server stopped');
+        //     } catch (error) {
+        //         vscode.window.showErrorMessage(`Failed to stop MCP Server: ${error}`);
+        //     }
+        // }],
+
+        // ['healthWatch.mcp.testConfig', async () => {
+        //     try {
+        //         // Test the MCP tools by running get_health_watch_config locally
+        //         const config = vscode.workspace.getConfiguration('healthWatch');
+        //         const channels = api.listChannels();
+        //         const internetStatus = internetService?.getCurrentStatus();
+                
+        //         const result = {
+        //             timestamp: new Date().toISOString(),
+        //             settings: JSON.parse(JSON.stringify(config)),
+        //             channels: channels.map(ch => ({
+        //                 id: ch.id,
+        //                 name: ch.name,
+        //                 description: ch.description,
+        //                 type: ch.type,
+        //                 state: ch.state,
+        //                 lastLatency: ch.lastLatency,
+        //                 nextProbe: ch.nextProbe,
+        //                 isPaused: ch.isPaused,
+        //                 isRunning: ch.isRunning,
+        //                 hasIndividualWatch: ch.hasIndividualWatch
+        //             })),
+        //             internetStatus: internetStatus ? {
+        //                 status: internetStatus.status,
+        //                 timestamp: internetStatus.timestamp,
+        //                 latencyMs: internetStatus.latencyMs,
+        //                 target: internetStatus.target,
+        //                 checkCount: internetStatus.checkCount,
+        //                 consecutiveFailures: internetStatus.consecutiveFailures,
+        //                 error: internetStatus.error
+        //             } : null
+        //         };
+                
+        //         // Show config in new document
+        //         const doc = await vscode.workspace.openTextDocument({
+        //             content: JSON.stringify(result, null, 2),
+        //             language: 'json'
+        //         });
+        //         await vscode.window.showTextDocument(doc);
+                
+        //     } catch (error) {
+        //         vscode.window.showErrorMessage(`MCP Config test failed: ${error}`);
+        //     }
+        // }],
+
+        // Notification Debug Commands  
+        ['healthWatch.notifications.showLog', async () => {
+            try {
+                const log = notificationManager.getNotificationLog();
+                const stats = notificationManager.getNotificationStats();
+                
+                const content = [
+                    `# 🔔 Health Watch Notification Log`,
+                    ``,
+                    `## 📊 Statistics`,
+                    `- **Total**: ${stats.total} notifications`,
+                    `- **Recent (1h)**: ${stats.recentCount}`,
+                    `- **Snoozed**: ${stats.snoozeCount}`,
+                    `- **By Type**: Info=${stats.byType.info}, Warning=${stats.byType.warning}, Error=${stats.byType.error}`,
+                    ``,
+                    `## 🗂️ By Channel`,
+                    ...Object.entries(stats.byChannel).map(([channel, count]) => `- **${channel}**: ${count}`),
+                    ``,
+                    `## 📝 Recent Notifications`,
+                    ...log.slice(-20).map(entry => {
+                        const time = new Date(entry.timestamp).toLocaleTimeString();
+                        const channelInfo = entry.channelId ? ` [${entry.channelId}]` : '';
+                        const reasonInfo = entry.reason ? ` (${entry.reason})` : '';
+                        const snoozeInfo = entry.wasSnoozed ? ` [SNOOZED]` : '';
+                        return `- **${time}** [${entry.type.toUpperCase()}]${channelInfo}${reasonInfo}${snoozeInfo} ${entry.message}`;
+                    })
+                ].join('\n');
+
+                const doc = await vscode.workspace.openTextDocument({
+                    content,
+                    language: 'markdown'
+                });
+                await vscode.window.showTextDocument(doc);
+                
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to show notification log: ${error}`);
+            }
+        }],
+
+        ['healthWatch.notifications.clearLog', async () => {
+            try {
+                notificationManager.clearNotificationLog();
+                vscode.window.showInformationMessage('🔔 Notification log cleared');
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to clear notification log: ${error}`);
+            }
+        }],
+        
+        ['healthWatch.classifyChannel', async () => {
+            try {
+                const channels = ConfigManager.getInstance().getChannels();
+                if (channels.length === 0) {
+                    vscode.window.showWarningMessage('No channels configured to classify');
+                    return;
+                }
+                
+                const channelItems = channels.map(channel => ({
+                    label: channel.name || channel.id,
+                    description: channel.type,
+                    detail: channel.url || channel.hostname || channel.target,
+                    channel
+                }));
+                
+                const selectedChannel = await vscode.window.showQuickPick(channelItems, {
+                    title: '🏷️ Select Channel to Classify',
+                    placeHolder: 'Choose a channel to classify as dev or production'
+                });
+                
+                if (selectedChannel) {
+                    await (notificationManager as any).showChannelClassificationDialog(
+                        selectedChannel.channel.id,
+                        selectedChannel.channel.name || selectedChannel.channel.id
+                    );
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to classify channel: ${error}`);
             }
         }]
     ];

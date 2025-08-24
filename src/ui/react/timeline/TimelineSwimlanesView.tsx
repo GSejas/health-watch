@@ -97,6 +97,48 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
         selectedChannels: [],
         showOnlyProblems: false
     });
+    const [localTimelineData, setLocalTimelineData] = React.useState<any>(timelineData || {});
+    const [lastUpdateAt, setLastUpdateAt] = React.useState<number | null>(null);
+
+    // Sync prop timeRange into local filters when it changes
+    React.useEffect(() => {
+        try {
+            const normalized = (timeRange || '7d').toString().replace('D', 'd').toLowerCase();
+            setFilters(f => ({ ...f, timeRange: normalized as FilterOptions['timeRange'] }));
+            console.debug('[TimelineSwimlanesView] synced timeRange prop -> filters', { timeRange: normalized });
+        } catch (err) {
+            console.warn('[TimelineSwimlanesView] failed to sync timeRange prop', err);
+        }
+    }, [timeRange]);
+
+    // Listen for incremental updates from the extension
+    React.useEffect(() => {
+        const handler = (event: MessageEvent) => {
+            const msg = event.data;
+            if (!msg) return;
+            if (msg.command === 'updateTimelineHeatmap') {
+                try {
+                    setLocalTimelineData(msg.payload.timelineData || {});
+                    setLastUpdateAt(Date.now());
+                    console.log('[TimelineSwimlanesView] received updateTimelineHeatmap', { timeRange: msg.payload.timeRange });
+                } catch (err) {
+                    console.warn('[TimelineSwimlanesView] error applying updateTimelineHeatmap', err);
+                }
+            } else if (msg.command === 'changeTimeRangeAck') {
+                try {
+                    const applied = msg.appliedRange as FilterOptions['timeRange'] | undefined;
+                    if (applied) {
+                        setFilters(f => ({ ...f, timeRange: applied }));
+                        console.debug('[TimelineSwimlanesView] applied changeTimeRangeAck', { applied });
+                    }
+                } catch (err) {
+                    console.warn('[TimelineSwimlanesView] error applying changeTimeRangeAck', err);
+                }
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, []);
     const getTimeRangeDays = (timeRange: string): number => {
         switch (timeRange) {
             case '30D': return 30;
@@ -106,7 +148,7 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
     };
 
     const generateDateLabels = (days: number): string[] => {
-        const labels = [];
+        const labels: string[] = [];
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
@@ -121,9 +163,12 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
         // No format conversion needed - dashboard now handles FilterPanel format directly
         // Communicate back to parent through webview messaging
         if (typeof window !== 'undefined' && (window as any).vscode) {
+            const requestId = `req-${Math.random().toString(36).slice(2,9)}`;
+            console.debug('[TimelineSwimlanesView] posting changeTimeRange', { range: newFilters.timeRange, requestId });
             (window as any).vscode.postMessage({
                 command: 'changeTimeRange',
-                range: newFilters.timeRange  // Use the FilterPanel format directly
+                range: newFilters.timeRange,  // Use the FilterPanel format directly
+                requestId
             });
         }
     };
@@ -217,6 +262,11 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
             />
 
             <TimelineLegend />
+            {lastUpdateAt && (
+                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--vscode-descriptionForeground)' }}>
+                    Last data update at: {new Date(lastUpdateAt).toLocaleTimeString()}
+                </div>
+            )}
 
             <div className="timeline-grid">
                 {/* Date headers */}
@@ -229,7 +279,7 @@ export const TimelineSwimlanesView: React.FC<TimelineSwimlanesViewProps> = ({
 
                 {/* Channel rows */}
                 {filteredChannels.map(channel => {
-                    const channelData = timelineData[channel.id] || [];
+                    const channelData = (localTimelineData && localTimelineData[channel.id]) || timelineData[channel.id] || [];
                     return (
                         <div key={channel.id} className="timeline-row">
                             <div className="channel-label">

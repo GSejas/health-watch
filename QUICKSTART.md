@@ -13,16 +13,7 @@ Health Watch is a VS Code extension that monitors your services, websites, and i
 
 ### Step 2: Choose Your Setup Style
 
-#### 🎯 **Option A: One-Click Setup (Recommended)**
-```bash
-# Windows (PowerShell)
-.\setup-config.ps1
-
-# macOS/Linux
-./setup-config.sh
-```
-
-#### 🛠️ **Option B: Manual Template Copy**
+#### 🛠️ **Option A: Manual Template Copy**
 ```bash
 # For developers (APIs, databases, local services)
 cp .healthwatch.json.developer .healthwatch.json

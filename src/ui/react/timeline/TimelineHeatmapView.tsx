@@ -59,6 +59,48 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
         selectedChannels: [],
         showOnlyProblems: false
     });
+    const [localHeatmapData, setLocalHeatmapData] = useState<any>(heatmapData || {});
+    const [lastUpdateAt, setLastUpdateAt] = React.useState<number | null>(null);
+
+    // Sync prop timeRange into local filters when it changes
+    React.useEffect(() => {
+        try {
+            const normalized = (timeRange || '7d').toString().replace('D', 'd').toLowerCase();
+            setFilters(f => ({ ...f, timeRange: normalized as FilterOptions['timeRange'] }));
+            console.debug('[TimelineHeatmapView] synced timeRange prop -> filters', { timeRange: normalized });
+        } catch (err) {
+            console.warn('[TimelineHeatmapView] failed to sync timeRange prop', err);
+        }
+    }, [timeRange]);
+
+    // Listen for incremental updates from the extension
+    React.useEffect(() => {
+        const handler = (event: MessageEvent) => {
+            const msg = event.data;
+            if (!msg) return;
+            if (msg.command === 'updateTimelineHeatmap') {
+                try {
+                    setLocalHeatmapData(msg.payload.heatmapData || {});
+                    setLastUpdateAt(Date.now());
+                    console.log('[TimelineHeatmapView] received updateTimelineHeatmap', { timeRange: msg.payload.timeRange });
+                } catch (err) {
+                    console.warn('[TimelineHeatmapView] error applying updateTimelineHeatmap', err);
+                }
+            } else if (msg.command === 'changeTimeRangeAck') {
+                try {
+                    const applied = msg.appliedRange as FilterOptions['timeRange'] | undefined;
+                    if (applied) {
+                        setFilters(f => ({ ...f, timeRange: applied }));
+                        console.debug('[TimelineHeatmapView] applied changeTimeRangeAck', { applied });
+                    }
+                } catch (err) {
+                    console.warn('[TimelineHeatmapView] error applying changeTimeRangeAck', err);
+                }
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, []);
 
     const handleFiltersChange = (newFilters: FilterOptions) => {
         setFilters(newFilters);
@@ -66,9 +108,13 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
         // No format conversion needed - dashboard now handles FilterPanel format directly
         // Communicate back to parent through webview messaging
         if (typeof window !== 'undefined' && (window as any).vscode) {
+            // Include a short requestId so we can correlate this user action through extension logs
+            const requestId = `req-${Math.random().toString(36).slice(2,9)}`;
+            console.debug('[TimelineHeatmapView] posting changeTimeRange', { range: newFilters.timeRange, requestId });
             (window as any).vscode.postMessage({
                 command: 'changeTimeRange',
-                range: newFilters.timeRange  // Use the FilterPanel format directly
+                range: newFilters.timeRange, // Use the FilterPanel format directly
+                requestId
             });
         }
     };
@@ -195,12 +241,18 @@ export const TimelineHeatmapView: React.FC<TimelineHeatmapViewProps> = ({
                     onFiltersChange={handleFiltersChange}
                     showProblemFilter={true}
                 />
+
+                {lastUpdateAt && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--vscode-descriptionForeground)' }}>
+                        Last data update at: {new Date(lastUpdateAt).toLocaleTimeString()}
+                    </div>
+                )}
                 
                 <HeatmapLegend />
                 
                 <div className="channels-heatmap-grid">
                     {filteredChannels.map(channel => {
-                        const channelHeatmap = heatmapData[channel.id] || [];
+                        const channelHeatmap = (localHeatmapData && localHeatmapData[channel.id]) || heatmapData[channel.id] || [];
                         return (
                             <div key={channel.id} className="channel-heatmap-card">
                                 <div className="channel-heatmap-header">

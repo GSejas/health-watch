@@ -6,25 +6,32 @@ import { ChannelInfo, ChannelState } from '../types';
 import { ChannelDefinition } from '../config';
 import { TerminologyMap, MarketingCopy } from '../terminology/semanticMapping';
 import { CoordinatedScheduler } from '../coordination/coordinatedScheduler';
+import { InternetCheckService, InternetStatus } from '../services/internetCheckService';
 
 export class StatusBarManager {
     private statusBarItem: vscode.StatusBarItem;
     private channelItems: Map<string, vscode.StatusBarItem> = new Map();
     private debugStatusBarItem?: vscode.StatusBarItem;
+    private coordinationStatusBarItem?: vscode.StatusBarItem;
     private configManager = ConfigManager.getInstance();
     private storageManager = StorageManager.getInstance();
     private scheduler: Scheduler;
     private updateTimer?: NodeJS.Timeout;
     private debugMode: boolean = false;
+    private internetService?: InternetCheckService;
+    private currentInternetStatus?: InternetStatus;
+    private showCoordinationStatus: boolean = true;
 
-    constructor(scheduler: Scheduler) {
+    constructor(scheduler: Scheduler, internetService?: InternetCheckService) {
         this.scheduler = scheduler;
+        this.internetService = internetService;
         this.statusBarItem = vscode.window.createStatusBarItem(
             vscode.StatusBarAlignment.Left, 
             100
         );
-        this.statusBarItem.command = 'healthWatch.openDashboard';
+        this.statusBarItem.command = 'healthWatch.internetOptions';
         this.setupEventListeners();
+        this.createCoordinationStatusBarItem();
         this.updateStatusBar();
         this.startPeriodicUpdates();
     }
@@ -50,6 +57,20 @@ export class StatusBarManager {
         if (this.scheduler instanceof CoordinatedScheduler) {
             this.scheduler.on('coordinationChanged', () => {
                 this.updateStatusBar();
+                this.updateCoordinationStatusBar();
+            });
+        }
+
+        // Listen for internet status changes
+        if (this.internetService) {
+            this.internetService.on('statusChanged', (status: InternetStatus) => {
+                this.currentInternetStatus = status;
+                this.updateStatusBar();
+            });
+
+            this.internetService.on('sample', (status: InternetStatus) => {
+                this.currentInternetStatus = status;
+                this.updateStatusBar();
             });
         }
     }
@@ -58,7 +79,109 @@ export class StatusBarManager {
         // Update every 5 seconds to show countdown
         this.updateTimer = setInterval(() => {
             this.updateStatusBar();
+            this.updateCoordinationStatusBar();
         }, 5000);
+    }
+
+    private createCoordinationStatusBarItem(): void {
+        const config = vscode.workspace.getConfiguration('healthWatch.statusBar');
+        this.showCoordinationStatus = config.get('showCoordination', true);
+        
+        if (!this.showCoordinationStatus || !(this.scheduler instanceof CoordinatedScheduler)) {
+            return;
+        }
+
+        if (this.coordinationStatusBarItem) {
+            this.coordinationStatusBarItem.dispose();
+        }
+        
+        // Create coordination status item with lower priority than main item
+        this.coordinationStatusBarItem = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Left, 
+            98  // Lower priority than main item (100)
+        );
+        this.coordinationStatusBarItem.command = 'healthWatch.showCoordinationDetails';
+        this.updateCoordinationStatusBar();
+    }
+
+    private updateCoordinationStatusBar(): void {
+        if (!this.coordinationStatusBarItem || !this.showCoordinationStatus) {
+            return;
+        }
+
+        if (!(this.scheduler instanceof CoordinatedScheduler)) {
+            this.coordinationStatusBarItem.hide();
+            return;
+        }
+
+        const coordinationManager = (this.scheduler as any)['coordinationManager'];
+        
+        if (!coordinationManager) {
+            this.coordinationStatusBarItem.text = '❓ Coord';
+            this.coordinationStatusBarItem.tooltip = 'Health Watch Coordination\n\nStatus: Manager not available';
+            this.coordinationStatusBarItem.show();
+            return;
+        }
+
+        const isEnabled = this.scheduler.isCoordinationEnabled();
+        const isLeader = coordinationManager.isLeader?.() || false;
+        const hasLock = coordinationManager.hasLock?.() || false;
+        const instanceId = coordinationManager.getInstanceId?.() || 'unknown';
+
+        let statusText: string;
+        let statusTooltip: string;
+        let backgroundColor: vscode.ThemeColor | undefined;
+
+        if (!isEnabled) {
+            // Single window mode
+            statusText = '🔧 Solo';
+            statusTooltip = 'Health Watch Coordination\n\nMode: Single Window\nAll monitoring is handled by this window';
+            backgroundColor = undefined;
+        } else {
+            // Multi-window coordination active
+            if (isLeader) {
+                if (hasLock) {
+                    statusText = '👑🔒 Master';
+                    statusTooltip = 'Health Watch Coordination\n\nRole: Master (Leader)\nLock: Acquired ✅\nThis window is actively monitoring';
+                    backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
+                } else {
+                    statusText = '👑🔓 Leader';
+                    statusTooltip = 'Health Watch Coordination\n\nRole: Leader\nLock: Released ⚠️\nTrying to acquire lock...';
+                    backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+                }
+            } else {
+                statusText = '👥 Follower';
+                statusTooltip = 'Health Watch Coordination\n\nRole: Follower\nThis window is delegating monitoring to the master';
+                backgroundColor = undefined;
+            }
+        }
+
+        // Add instance info to tooltip
+        statusTooltip += `\n\nInstance ID: ${instanceId.substring(0, 8)}...`;
+        
+        // Add timing information if available
+        const nextElectionTime = coordinationManager.getNextElectionTime?.();
+        if (nextElectionTime) {
+            const remaining = Math.max(0, nextElectionTime - Date.now());
+            if (remaining > 0) {
+                const seconds = Math.ceil(remaining / 1000);
+                statusTooltip += `\nNext election: ${seconds}s`;
+            }
+        }
+
+        // Add heartbeat info if available
+        const lastHeartbeat = coordinationManager.getLastHeartbeat?.();
+        if (lastHeartbeat) {
+            const heartbeatAge = Math.floor((Date.now() - lastHeartbeat) / 1000);
+            statusTooltip += `\nLast heartbeat: ${heartbeatAge}s ago`;
+        }
+
+        statusTooltip += '\n\nClick for coordination details';
+
+        this.coordinationStatusBarItem.text = statusText;
+        this.coordinationStatusBarItem.tooltip = statusTooltip;
+        this.coordinationStatusBarItem.backgroundColor = backgroundColor;
+        this.coordinationStatusBarItem.show();
     }
 
     private updateStatusBar() {
@@ -89,49 +212,53 @@ export class StatusBarManager {
         // Default: minimal mode (single global status item)
         this.disposeChannelItems();
 
-        if (!this.getShowInternetSetting()) {
+        // Check if internet monitoring is enabled
+        const internetConfig = vscode.workspace.getConfiguration('healthWatch.internet');
+        const internetEnabled = internetConfig.get('enabled', true);
+        
+        if (!internetEnabled || !this.internetService) {
             this.statusBarItem.hide();
             return;
         }
 
-    const channels = this.configManager.getChannels();
-    const states = this.scheduler.getChannelRunner().getChannelStates() as Map<string, ChannelState>;
-        
-        // Focus on internet connectivity - find first internet/public channel
-        const internetChannel = this.findInternetChannel(channels);
-        const internetState = internetChannel ? states.get(internetChannel.id) : null;
-
-        const statusIcon = this.getCustomStatusIcon(internetState?.state || 'unknown');
+        // Use internet service status
+        const internetStatus = this.currentInternetStatus || this.internetService.getCurrentStatus();
+        const statusIcon = this.getInternetStatusIcon(internetStatus.status);
         const currentWatch = this.storageManager.getCurrentWatch();
 
         let text: string;
         let tooltip: string;
         let backgroundColor: vscode.ThemeColor | undefined;
 
-        if (internetChannel && internetState) {
-            const latency = internetState.lastSample?.latencyMs ? `${internetState.lastSample.latencyMs}ms` : '';
+        // Build status bar text
+        const latency = internetStatus.latencyMs ? `${internetStatus.latencyMs}ms` : '';
 
-            if (currentWatch?.isActive) {
-                const remaining = this.formatWatchRemaining(currentWatch);
-                text = `${statusIcon}${latency ? ' ' + latency : ''} ${TerminologyMap.UILabels.statusBarActiveMonitoring}: ${remaining}`;
-                tooltip = this.buildInternetTooltip(internetChannel, internetState, currentWatch);
-            } else {
-                text = `${statusIcon}${latency ? ' ' + latency : ''}`;
-                tooltip = this.buildInternetTooltip(internetChannel, internetState);
-            }
-
-            // Set background color for critical states
-            if (internetState.state === 'offline') {
-                backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-            } else if (internetState.state === 'unknown') {
-                backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-            } else {
-                backgroundColor = undefined;
-            }
+        if (currentWatch?.isActive) {
+            const remaining = this.formatWatchRemaining(currentWatch);
+            text = `${statusIcon}${latency ? ' ' + latency : ''} ${TerminologyMap.UILabels.statusBarActiveMonitoring}: ${remaining}`;
+            tooltip = this.buildInternetServiceTooltip(internetStatus, currentWatch);
         } else {
-            text = `🟡 Internet: Not configured`;
-            tooltip = 'No internet connectivity channel configured\n\nAdd an internet check to .healthwatch.json\n\nClick to open dashboard';
+            if (internetStatus.status === 'online' && latency) {
+                text = `$(globe) ${latency}`;
+            } else if (internetStatus.status === 'offline') {
+                text = `$(globe) Offline`;
+            } else if (internetStatus.status === 'captive') {
+                text = `$(globe) $(shield) Sign-in`;
+            } else {
+                text = `$(globe) Unknown`;
+            }
+            tooltip = this.buildInternetServiceTooltip(internetStatus);
+        }
+
+        // Set background color for critical states
+        if (internetStatus.status === 'offline') {
+            backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+        } else if (internetStatus.status === 'captive') {
             backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        } else if (internetStatus.status === 'unknown') {
+            backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        } else {
+            backgroundColor = undefined;
         }
 
         this.statusBarItem.text = text;
@@ -657,12 +784,102 @@ export class StatusBarManager {
         return this.debugMode;
     }
 
+    /**
+     * Get internet status icon for status bar
+     */
+    private getInternetStatusIcon(status: string): string {
+        switch (status) {
+            case 'online': return '$(globe)';
+            case 'offline': return '$(globe)';
+            case 'captive': return '$(shield)';
+            case 'unknown': 
+            default: return '$(globe)';
+        }
+    }
+
+    /**
+     * Build tooltip for internet service status
+     */
+    private buildInternetServiceTooltip(status: InternetStatus, currentWatch?: any): string {
+        let tooltip = '';
+        
+        // Status line
+        switch (status.status) {
+            case 'online':
+                tooltip += `✅ Internet: Connected`;
+                if (status.latencyMs) {
+                    tooltip += ` (${status.latencyMs}ms)`;
+                }
+                break;
+            case 'offline':
+                tooltip += `❌ Internet: Disconnected`;
+                if (status.consecutiveFailures > 0) {
+                    tooltip += `\nFailed ${status.consecutiveFailures} consecutive checks`;
+                }
+                break;
+            case 'captive':
+                tooltip += `⚠️ Internet: Captive Portal\nClick to open browser`;
+                break;
+            case 'unknown':
+            default:
+                tooltip += `❓ Internet: Status unknown\nChecking...`;
+                break;
+        }
+        
+        // Last check time
+        if (status.timestamp) {
+            const lastCheck = Math.floor((Date.now() - status.timestamp) / 1000);
+            if (lastCheck < 60) {
+                tooltip += `\nLast check: ${lastCheck}s ago`;
+            } else {
+                tooltip += `\nLast check: ${Math.floor(lastCheck / 60)}m ago`;
+            }
+        }
+        
+        // Target info
+        if (status.target) {
+            try {
+                const url = new URL(status.target);
+                tooltip += `\nTarget: ${url.hostname}`;
+            } catch {
+                tooltip += `\nTarget: ${status.target}`;
+            }
+        }
+        
+        // Error info
+        if (status.error && status.status !== 'online') {
+            tooltip += `\nError: ${status.error}`;
+        }
+        
+        // Watch info
+        if (currentWatch?.isActive) {
+            tooltip += `\n\n🎯 Watch Active`;
+            tooltip += `\nStarted: ${new Date(currentWatch.startTime).toLocaleString()}`;
+            if (currentWatch.duration !== 'forever') {
+                tooltip += `\nDuration: ${currentWatch.duration}`;
+            }
+        }
+        
+        // Actions
+        tooltip += `\n\n🔄 Click for options`;
+        
+        return tooltip;
+    }
+
     dispose() {
         if (this.updateTimer) {
             clearInterval(this.updateTimer);
         }
         this.statusBarItem.dispose();
         this.disposeDebugStatusBarItem();
+        this.disposeCoordinationStatusBarItem();
         this.disposeChannelItems();
+    }
+
+    private disposeCoordinationStatusBarItem(): void {
+        if (this.coordinationStatusBarItem) {
+            this.coordinationStatusBarItem.dispose();
+            this.coordinationStatusBarItem = undefined;
+        }
     }
 }

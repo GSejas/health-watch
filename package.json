@@ -143,6 +143,40 @@
           "default": true,
           "description": "Enable 'only when fishy' mode for automated watch triggers"
         },
+        "healthWatch.internet.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "🌐 Enable automatic internet connectivity monitoring"
+        },
+        "healthWatch.internet.targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "https://clients3.google.com/generate_204",
+            "https://cloudflare.com/cdn-cgi/trace"
+          ],
+          "description": "🎯 Internet connectivity check endpoints"
+        },
+        "healthWatch.internet.intervalSec": {
+          "type": "number",
+          "default": 15,
+          "minimum": 5,
+          "description": "⏱️ Check interval in seconds (fast feedback)"
+        },
+        "healthWatch.internet.timeoutMs": {
+          "type": "number",
+          "default": 3000,
+          "minimum": 1000,
+          "description": "⏰ Request timeout in milliseconds"
+        },
+        "healthWatch.internet.failureThreshold": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "description": "🚨 Failures needed before marking offline"
+        },
         "healthWatch.onlyWhenFishy.baselineIntervalSec": {
           "type": "number",
           "default": 60,
@@ -209,6 +243,25 @@
           "type": "boolean",
           "default": true,
           "description": "Show internet connectivity status in status bar"
+        },
+        "healthWatch.statusBar.showCoordination": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show multi-window coordination status in status bar (displays master/follower role and lock status)"
+        },
+        "healthWatch.mcp.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Model Context Protocol (MCP) server for AI assistant integration"
+        },
+        "healthWatch.channelClassifications": {
+          "type": "object",
+          "default": {},
+          "description": "User-defined channel classifications (dev vs production) stored as channelId: 'dev'|'production'",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["dev", "production"]
+          }
         },
         "healthWatch.demo.incidentHistoryDays": {
           "type": "number",
@@ -331,6 +384,11 @@
         "category": "Health Watch"
       },
       {
+        "command": "healthWatch.classifyChannel",
+        "title": "Classify Channel as Dev/Production",
+        "category": "Health Watch"
+      },
+      {
         "command": "healthWatch.refreshIncidents",
         "title": "Refresh Incidents",
         "category": "Health Watch"
@@ -377,6 +435,42 @@
         "title": "Run Internet Check Now",
         "category": "Health Watch",
         "icon": "$(globe)"
+      },
+      {
+        "command": "healthWatch.internetOptions",
+        "title": "Internet Status Options",
+        "category": "Health Watch",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "healthWatch.mcp.start",
+        "title": "Start MCP Server",
+        "category": "Health Watch",
+        "icon": "$(robot)"
+      },
+      {
+        "command": "healthWatch.mcp.stop",
+        "title": "Stop MCP Server",
+        "category": "Health Watch",
+        "icon": "$(stop-circle)"
+      },
+      {
+        "command": "healthWatch.mcp.testConfig",
+        "title": "Test MCP Configuration",
+        "category": "Health Watch",
+        "icon": "$(test-view-icon)"
+      },
+      {
+        "command": "healthWatch.notifications.showLog",
+        "title": "Show Notification Log",
+        "category": "Health Watch",
+        "icon": "$(output)"
+      },
+      {
+        "command": "healthWatch.notifications.clearLog", 
+        "title": "Clear Notification Log",
+        "category": "Health Watch",
+        "icon": "$(clear-all)"
       }
     ],
     "viewsContainers": {
@@ -506,7 +600,7 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-  "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=./out/test/test/e2e",
+    "test": "vscode-test --extensionDevelopmentPath=. --extensionTestsPath=./out/test/test/e2e",
     "test:unit": "vitest run --dir test/unit",
     "test:integration": "vitest run --dir test/integration",
     "test:watch": "vitest --watch",
@@ -548,6 +642,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4",
     "ajv": "^8.12.0",
     "date-fns": "^3.6.0",
     "mysql2": "^3.14.3"

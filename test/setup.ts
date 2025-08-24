@@ -11,11 +11,16 @@ const mockVSCode = {
     getState: vi.fn().mockReturnValue(null)
 };
 
-// Mock window.vscode for React components
-Object.defineProperty(window, 'vscode', {
-    value: mockVSCode,
-    writable: true
-});
+// Set NODE_ENV for tests
+process.env.NODE_ENV = 'test';
+
+// Mock window.vscode for React components (only if window exists)
+if (typeof window !== 'undefined') {
+    Object.defineProperty(window, 'vscode', {
+        value: mockVSCode,
+        writable: true
+    });
+}
 
 // Mock VS Code module for Node.js tests
 vi.mock('vscode', () => ({

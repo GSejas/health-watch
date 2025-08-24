@@ -47,12 +47,15 @@ export class DashboardManager {
     private storageManager = StorageManager.getInstance();
     private statsCalculator = new StatsCalculator();
     private refreshTimer: NodeJS.Timeout | undefined;
+    // Track pending pings to measure round-trip times
+    private pendingPings: Map<string, number> = new Map();
     private context: vscode.ExtensionContext | undefined;
     
     // State preservation for seamless UX
     private currentState: DashboardState = {
         activeView: 'overview',
-        liveMonitorEnabled: true,
+    liveMonitorEnabled: true,
+    timeRange: '7d',
         lastUpdate: Date.now()
     };
 
@@ -136,8 +139,31 @@ export class DashboardManager {
                     await this.updateDashboard({ preserveState: false });
                     break;
                 case 'changeTimeRange':
-                    this.currentState.timeRange = message.range;
-                    await this.updateDashboard({ preserveState: true });
+                    // Accept both `range` and legacy `timeRange` keys from the webview
+                    {
+                        // Log the raw incoming message for diagnostics so we can see exactly what the webview posted
+                        console.debug('[Dashboard] changeTimeRange received (raw message)', message);
+
+                        const incoming = message.range ?? message.timeRange;
+                        let effective = typeof incoming === 'string' ? String(incoming).trim() : undefined;
+                        if (!effective) {
+                            console.warn('[Dashboard] changeTimeRange received without range, defaulting to 7d');
+                            effective = '7d';
+                        }
+                        // Normalize to canonical form
+                        effective = effective.replace('D', 'd').toLowerCase();
+                        console.debug('[Dashboard] changeTimeRange normalized ->', { incoming, effective, requestId: message.requestId });
+                        // Trace assignment with caller context to help find unexpected overwrites
+                        const previous = this.currentState.timeRange;
+                        this.currentState.timeRange = effective;
+                        const assignTrace = (new Error().stack || '').split('\n').slice(2,5).join('\n');
+                        console.debug('[Dashboard] changeTimeRange -> applied', { previous, effective, requestId: message.requestId, assignTrace });
+
+                        // Inform the webview of the applied range so the UI can sync; echo requestId if present
+                        this.panel?.webview.postMessage({ command: 'changeTimeRangeAck', appliedRange: effective, requestId: message.requestId });
+
+                        await this.updateDashboard({ preserveState: true });
+                    }
                     break;
                 case 'zoomToTimeRange':
                     // Handle heatmap cell zoom - switch to detailed view for specific time range
@@ -183,6 +209,21 @@ export class DashboardManager {
                     // Webview reports its current state for synchronization
                     this.currentState = { ...this.currentState, ...message.state };
                     break;
+                case 'pong':
+                    try {
+                        const id = message.id as string | undefined;
+                        const sentAt = id ? this.pendingPings.get(id) : undefined;
+                        if (id && sentAt) {
+                            const rtt = Date.now() - sentAt;
+                            console.debug('[Dashboard] received pong', { id, rtt });
+                            this.pendingPings.delete(id);
+                        } else {
+                            console.debug('[Dashboard] received pong (no matching ping)', { id });
+                        }
+                    } catch (err) {
+                        console.warn('[Dashboard] error handling pong', err);
+                    }
+                    break;
             }
         });
 
@@ -214,11 +255,29 @@ export class DashboardManager {
 
         if (options.preserveState) {
             // Send incremental update via postMessage instead of full HTML replacement
+            // Include timeline & heatmap payload so React components can update without full reload
+            const dashboardData = this.generateDashboardData();
+            // Debug logging
+            console.debug('[Dashboard] sending incremental update', { timeRange: this.currentState.timeRange });
             this.panel.webview.postMessage({
                 command: 'updateContent',
-                data: this.generateDashboardData(),
+                data: dashboardData,
                 options: updateOptions
             });
+
+            // Also send a targeted update for timeline/heatmap components
+            try {
+                this.panel.webview.postMessage({
+                    command: 'updateTimelineHeatmap',
+                    payload: {
+                        heatmapData: dashboardData.heatmapData,
+                        timelineData: dashboardData.timelineData,
+                        timeRange: this.currentState.timeRange || '7d'
+                    }
+                });
+            } catch (err) {
+                console.warn('[Dashboard] failed to post updateTimelineHeatmap', err);
+            }
         } else {
             // Full refresh for view changes
             this.panel.webview.html = this.generateDashboardHTML(
@@ -247,6 +306,8 @@ export class DashboardManager {
                     try {
                         this.currentState.lastUpdate = Date.now();
                         await this.updateDashboard({ preserveState: true });
+                        // Send a lightweight ping to the webview after each successful incremental update
+                        try { this.sendPing(); } catch (err) { console.warn('[Dashboard] sendPing failed', err); }
 
                         // Push lightweight watch stats to webview for UI banner
                         const currentWatch = this.storageManager.getCurrentWatch();
@@ -304,6 +365,23 @@ export class DashboardManager {
         }
     }
 
+    // Lightweight ping/pong to verify webview responsiveness and measure RTT
+    private generatePingId(): string {
+        return Math.random().toString(36).slice(2, 10);
+    }
+
+    private sendPing() {
+        if (!this.panel) return;
+        try {
+            const id = this.generatePingId();
+            this.pendingPings.set(id, Date.now());
+            this.panel.webview.postMessage({ command: 'ping', id });
+            console.debug('[Dashboard] sent ping', { id });
+        } catch (err) {
+            console.warn('[Dashboard] failed to post ping', err);
+        }
+    }
+
     /**
      * Generate data payload for incremental updates
      */
@@ -312,8 +390,10 @@ export class DashboardManager {
         const states = this.scheduler.getChannelRunner().getChannelStates();
         const currentWatch = this.storageManager.getCurrentWatch();
 
-        // Use the pure data generation function
-        const dashboardData = generateDashboardDataPure(channels, states, currentWatch || undefined, this.storageManager);
+    // Use the pure data generation function and respect current timeRange
+    const effectiveRange = this.currentState.timeRange || '7d';
+    console.debug('[Dashboard] generating dashboard data', { effectiveRange });
+    const dashboardData = generateDashboardDataPure(channels, states, currentWatch || undefined, this.storageManager, { timeRange: effectiveRange });
 
         // Add UI-specific transformations for backward compatibility
         return {
@@ -614,8 +694,19 @@ export class DashboardManager {
             // Handle incremental updates from backend
             window.addEventListener('message', event => {
                 const message = event.data;
+                // Debug: log all incoming messages to help diagnose missing updates
+                try { console.log('[webview] incoming message', message); } catch {}
                 if (message.command === 'updateContent') {
                     updateDashboardContent(message.data, message.options);
+                } else if (message.command === 'ping') {
+                    // Reply quickly so extension can measure latency and confirm webview is alive
+                    try {
+                        const pong = { command: 'pong', id: message.id, ts: Date.now() };
+                        console.debug('[webview] replying pong', pong);
+                        vscode.postMessage(pong);
+                    } catch (err) {
+                        console.warn('[webview] failed to reply pong', err);
+                    }
                 }
             });
             
@@ -789,10 +880,17 @@ export class DashboardManager {
             document.head.appendChild(style);
             
             function changeTimeRange(range) {
-                vscode.postMessage({
-                    command: 'changeTimeRange',
-                    range: range
-                });
+                try {
+                    var requestId = 'req-' + Math.random().toString(36).slice(2,9);
+                    console.debug('[webview] posting changeTimeRange', { range: range, requestId: requestId });
+                    vscode.postMessage({
+                        command: 'changeTimeRange',
+                        range: range,
+                        requestId: requestId
+                    });
+                } catch (err) {
+                    try { console.warn('[webview] changeTimeRange post failed', err); } catch(e) {}
+                }
             }
             
             function filterIncidents(status) {

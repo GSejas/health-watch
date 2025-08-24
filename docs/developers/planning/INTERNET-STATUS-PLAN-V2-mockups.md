@@ -78,45 +78,56 @@
 
   👑 Leader Window (Active Checking)
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ 👑🔒 │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...     │
   └─────────────────────────────────────────────────────────────────────────────┘
-                       ↑
-                 Leader + Lock
-              (Actively running checks)
+             ↑
+           Leader + Lock
+        (Actively running checks)
+  ```
 
   👥 Follower Windows (Passive Display)
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ 👥🔓 │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...     │
   └─────────────────────────────────────────────────────────────────────────────┘
-                       ↑
-               Follower + No Lock
-             (Reading shared state only)
+             ↑
+         Follower + No Lock
+         (Reading shared state only)
+  ```
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ 👥🔓 │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...     │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   🔄 Leadership Transition
 
   Window 1 (Leader dies):
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ ❌ CLOSED                                              │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   Window 2 (Becomes new leader):
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ 👑🔒 │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...     │
   └─────────────────────────────────────────────────────────────────────────────┘
-                       ↑
-              Promoted to leader!
+             ↑
+        Promoted to leader!
+  ```
 
   ---
   🎛️ Settings Configuration UI
 
   ⚙️ VS Code Settings Panel
 
+  ```text
   ╭─────────────────────────────────────────────────────────────────────────────╮
   │ Settings                                                                 [×]│
   ├─────────────────────────────────────────────────────────────────────────────┤
@@ -144,82 +155,99 @@
   │ │          [+ Add target]                                                 ││
   │ └─────────────────────────────────────────────────────────────────────────┘│
   ╰─────────────────────────────────────────────────────────────────────────────╯
+  ```
 
   ---
   📱 Different Status Bar Modes
 
   🔹 Minimal Mode (Default)
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ ... │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...                           │
   └─────────────────────────────────────────────────────────────────────────────┘
-        ↑
+      ↑
     Single internet indicator
+  ```
 
   🔸 Mini-Multi-Channel Mode
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ ... │ $(server):$(check) $(globe):$(check) $(shield):$(error) │ Ln 42 │ ... │
   └─────────────────────────────────────────────────────────────────────────────┘
-        ↑                     ↑                    ↑
+      ↑                     ↑                    ↑
      Internet            DNS Check             VPN Gateway
      (Online)            (Online)              (Offline)
+  ```
 
   🔺 Compact Mode
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ ... │ $(server)$(check)15ms $(globe)$(check) $(shield)$(error) ... │ Ln │..│
   └─────────────────────────────────────────────────────────────────────────────┘
-        ↑
+      ↑
     Dense channel display with latency
+  ```
 
   ---
   🚨 Error & Edge Case States
 
   🏢 Corporate Network Detection
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ $(shield) Corporate │ Ln 42, Col 8 │ UTF-8 │ ...     │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   Tooltip:
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ 🏢 Corporate Network Detected                                              │
   │ Using internal targets: internal-gateway.company.local                     │
   │ Status: Online (45ms)                                                      │
   │ Click to open settings                                                     │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   🌊 Flapping Network Warning
 
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │ $(pulse) Unstable │ Ln 42, Col 8 │ UTF-8 │ ...      │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   Tooltip:
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ ⚠️ Network appears unstable                                                │
   │ Frequent online/offline changes detected                                   │
   │ Consider checking WiFi signal or ethernet connection                       │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   🚧 First-Run Setup Prompt
 
-                        ┌─────────────────────────────────────────────┐
-                        │ 🌐 Welcome to Health Watch!                │
-                        ├─────────────────────────────────────────────┤
-                        │                                             │
-                        │ Enable automatic internet status in the     │
-                        │ status bar?                                 │
-                        │                                             │
-                        │ ✅ Shows connection status instantly        │
-                        │ ⚡ Updates every 15 seconds                 │
-                        │ 🔒 No data sent externally                  │
-                        │                                             │
-                        │ ┌─────────────┐ ┌─────────────┐ ┌─────────┐ │
-                        │ │ ✅ Enable   │ │ ❌ No Thanks │ │ ⚙️ Setup │ │
-                        │ └─────────────┘ └─────────────┘ └─────────┘ │
-                        └─────────────────────────────────────────────┘
+  ```text
+              ┌─────────────────────────────────────────────┐
+              │ 🌐 Welcome to Health Watch!                │
+              ├─────────────────────────────────────────────┤
+              │                                             │
+              │ Enable automatic internet status in the     │
+              │ status bar?                                 │
+              │                                             │
+              │ ✅ Shows connection status instantly        │
+              │ ⚡ Updates every 15 seconds                 │
+              │ 🔒 No data sent externally                  │
+              │                                             │
+              │ ┌─────────────┐ ┌─────────────┐ ┌─────────┐ │
+              │ │ ✅ Enable   │ │ ❌ No Thanks │ │ ⚙️ Setup │ │
+              │ └─────────────┘ └─────────────┘ └─────────┘ │
+              └─────────────────────────────────────────────┘
+  ```
 
   ---
   🎯 Network Check Workflow Visualization
@@ -227,6 +255,7 @@
   🔄 Check Sequence Display
 
   Debug Mode - Network Check Flow:
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ 14:32:45 → Checking https://clients3.google.com/generate_204               │
   │ 14:32:45 → Leader window 👑 running check                                  │
@@ -237,11 +266,13 @@
   │ 14:32:45 → All status bars updated ✨                                     │
   │ 14:32:45 → Next check scheduled: 14:33:00 (15s)                           │
   └─────────────────────────────────────────────────────────────────────────────┘
+  ```
 
   📊 Multi-Window State Dashboard
 
   Health Watch - Multi-Window Debug View
-```
+
+  ```text
   ╭─────────────────────────────────────────────────────────────────────────────╮
   │ Windows Active: 3                    Last Check: 14:32:45                  │
   ├─────────────────────────────────────────────────────────────────────────────┤
@@ -266,110 +297,109 @@
   │ Consecutive successes: 47                                                  │
   │                                                                             │
   ╰─────────────────────────────────────────────────────────────────────────────╯
-```
+  ```
+
   ---
   🎪 Zero-Config Experience Flow
 
   Step 1: Fresh Install
 
   VS Code Status Bar (Before):
-```
+  ```text
   ┌─────────────────────────────────────────────────────────────────────────────┐
   │ File Edit View ... │                    │ Ln 42, Col 8 │ UTF-8 │ ...      │
   └─────────────────────────────────────────────────────────────────────────────┘
-                       ↑
-                  No internet status
-```
-│                                                                             │
-│ Internet Status: $(check) ONLINE (15ms)                                    │
-│ Target: https://clients3.google.com/generate_204                           │
-│ Consecutive successes: 47                                                  │
-│                                                                             │
-╰─────────────────────────────────────────────────────────────────────────────╯
-```
+             ↑
+          No internet status
+  ```
 
----
+  ```text
+  │                                                                             │
+  │ Internet Status: $(check) ONLINE (15ms)                                    │
+  │ Target: https://clients3.google.com/generate_204                           │
+  │ Consecutive successes: 47                                                  │
+  │                                                                             │
+  ╰─────────────────────────────────────────────────────────────────────────────╯
+  ```
 
-## 🎪 Zero-Config Experience Flow
+  ---
 
-### Step 1: Fresh Install
-VS Code Status Bar (Before):
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ File Edit View ... │                    │ Ln 42, Col 8 │ UTF-8 │ ...      │
-└─────────────────────────────────────────────────────────────────────────────┘
-                     ↑
-                No internet status
-```
+  ## 🎪 Zero-Config Experience Flow
 
-### Step 2: Extension Activates
-VS Code Status Bar (2 seconds later):
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ File Edit View ... │ $(question) ... │ Ln 42, Col 8 │ UTF-8 │ ...        │
-└─────────────────────────────────────────────────────────────────────────────┘
-                     ↑
-                  Checking...
-```
+  ### Step 1: Fresh Install
+  VS Code Status Bar (Before):
+  ```text
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ File Edit View ... │                    │ Ln 42, Col 8 │ UTF-8 │ ...      │
+  └─────────────────────────────────────────────────────────────────────────────┘
+             ↑
+          No internet status
+  ```
 
-### Step 3: First Check Complete
-VS Code Status Bar (5 seconds later):
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ File Edit View ... │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...          │
-└─────────────────────────────────────────────────────────────────────────────┘
-                     ↑
-              ✨ Magic! It just works!
-```
+  ### Step 2: Extension Activates
+  VS Code Status Bar (2 seconds later):
+  ```text
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ File Edit View ... │ $(question) ... │ Ln 42, Col 8 │ UTF-8 │ ...        │
+  └─────────────────────────────────────────────────────────────────────────────┘
+             ↑
+            Checking...
+  ```
 
-These ASCII mockups illustrate the Internet Status feature behavior and interactions for the VS Code status bar, tooltips, popups, multi-window coordination, settings, and edge cases.│ └─ Last sync: 14:32:45                                                     │
+  ### Step 3: First Check Complete
+  VS Code Status Bar (5 seconds later):
+  ```text
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │ File Edit View ... │ $(check) 15ms │ Ln 42, Col 8 │ UTF-8 │ ...          │
+  └─────────────────────────────────────────────────────────────────────────────┘
+             ↑
+          ✨ Magic! It just works!
+  ```
 
----
+  These ASCII mockups illustrate the Internet Status feature behavior and interactions for the VS Code status bar, tooltips, popups, multi-window coordination, settings, and edge cases.
+  ---
+  # 🎭 Complex Multi-Window & Channel Permutations - ASCII Overview
 
+  ## 🎭 Complex Multi-Window & Channel Permutations — Quick Reference
 
+  ### At-a-glance recommendations
+  - Global Internet checks: elect one user-level leader (single leader across all windows).
+  - Channels: keep coordination per-workspace (workspace-local leaders + storage).
+  - Shared storage: separate user-level globalState (internet) and workspace disk storage (channels).
+  - Leadership transitions: target < 5s gap — run an immediate validation check on promotion.
+  - Config resolution: enforce policy hierarchy (Corporate → Workspace → User → Default).
 
-# 🎭 Complex Multi-Window & Channel Permutations - ASCII Overview
+  ### Short scenario map (problem → recommended action)
+  | Scenario | Problem | Recommended action |
+  |---|---:|---|
+  | Pure Internet | No channels, multi-window display | Single user-level leader; followers read shared state |
+  | Hybrid Mode | Internet + workspace channels | Dual-layer coordination: global internet leader + per-workspace channel leaders |
+  | Corporate Override | Corporate targets / guards | Detect corporate context → apply corporate targets + guard checks; show policy in tooltip |
+  | Workspace Split | Multiple workspaces, independent configs | Global internet leader; per-workspace channel leaders and storage; avoid cross-workspace leader conflicts |
+  | Leader Death | Leader closes mid-check | Fast election (lowest PID or deterministic key); new leader runs immediate validation check |
+  | Config Conflicts | User/workspace/corp disagree | Policy engine resolves: Corporate > Workspace > User > Default; reflect decision in UI |
 
-## 🎭 Complex Multi-Window & Channel Permutations — Quick Reference
-
-### At-a-glance recommendations
-- Global Internet checks: elect one user-level leader (single leader across all windows).
-- Channels: keep coordination per-workspace (workspace-local leaders + storage).
-- Shared storage: separate user-level globalState (internet) and workspace disk storage (channels).
-- Leadership transitions: target < 5s gap — run an immediate validation check on promotion.
-- Config resolution: enforce policy hierarchy (Corporate → Workspace → User → Default).
-
-### Short scenario map (problem → recommended action)
-| Scenario | Problem | Recommended action |
-|---|---:|---|
-| Pure Internet | No channels, multi-window display | Single user-level leader; followers read shared state |
-| Hybrid Mode | Internet + workspace channels | Dual-layer coordination: global internet leader + per-workspace channel leaders |
-| Corporate Override | Corporate targets / guards | Detect corporate context → apply corporate targets + guard checks; show policy in tooltip |
-| Workspace Split | Multiple workspaces, independent configs | Global internet leader; per-workspace channel leaders and storage; avoid cross-workspace leader conflicts |
-| Leader Death | Leader closes mid-check | Fast election (lowest PID or deterministic key); new leader runs immediate validation check |
-| Config Conflicts | User/workspace/corp disagree | Policy engine resolves: Corporate > Workspace > User > Default; reflect decision in UI |
-
-### Decision checklist for implementers
-- Leader scope
+  ### Decision checklist for implementers
+  - Leader scope
     - Internet: user-level (global)
     - Channels: workspace-level
-- Storage layout
+  - Storage layout
     - globalState.json (user-level): internet results, leader heartbeat
     - workspace/.healthwatch (workspace-level): channel configs/results
-- Election rules
+  - Election rules
     - Deterministic (PID, timestamp, or lock-file); timeouts ≈ 3–5s
     - On promotion: run immediate check before resuming schedule
-- Failure handling
+  - Failure handling
     - Record firstFailureTime + confirmed outage start
     - Backoff when offline; recover on first success
-- UI signals
+  - UI signals
     - Expose current leader, last-check age, and config source (corporate/workspace/user) in tooltip
 
-### Minimal protocol sketch
-1. All windows read globalState on start.
-2. Each window posts a heartbeat with windowId + timestamp.
-3. If leader heartbeat absent for > heartbeatTimeout → start election.
-4. Winner takes leader lock, writes leader identity to globalState, runs immediate checks.
-5. Followers poll globalState for results and update UI.
+  ### Minimal protocol sketch
+  1. All windows read globalState on start.
+  2. Each window posts a heartbeat with windowId + timestamp.
+  3. If leader heartbeat absent for > heartbeatTimeout → start election.
+  4. Winner takes leader lock, writes leader identity to globalState, runs immediate checks.
+  5. Followers poll globalState for results and update UI.
 
-Use this reference to fill the coordination gap between the Internet service (global) and the channel subsystem (workspace-local). Keep checks deterministic, storage separated by scope, and UI transparent about which policy/config was applied.
+  Use this reference to fill the coordination gap between the Internet service (global) and the channel subsystem (workspace-local). Keep checks deterministic, storage separated by scope, and UI transparent about which policy/config was applied.

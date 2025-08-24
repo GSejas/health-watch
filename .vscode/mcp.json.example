@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "name": "health-watch",
+      "command": "node",
+      "args": ["./src/mcp/standalone-server.js"],
+      "transport": "stdio"
+    }
+  ]
+}

@@ -20,6 +20,19 @@ export class NotificationManager {
     private snoozeStates = new Map<string, SnoozeState>();
     private readonly NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes
     private readonly SNOOZE_STORAGE_KEY = 'healthWatch.snoozeStates';
+    
+    // Notification logging
+    private notificationLog: Array<{
+        timestamp: number;
+        type: 'info' | 'warning' | 'error';
+        message: string;
+        channelId?: string;
+        reason?: string;
+        actions?: string[];
+        wasSnoozed?: boolean;
+        snoozeReason?: string;
+    }> = [];
+    private readonly MAX_LOG_ENTRIES = 100;
 
     constructor(scheduler: Scheduler) {
         this.scheduler = scheduler;
@@ -43,6 +56,198 @@ export class NotificationManager {
         this.scheduler.on('fishyConditionDetected', (event) => {
             this.handleFishyCondition(event.channelId, event.condition);
         });
+    }
+
+    /**
+     * 📝 Notification Logging Methods
+     */
+    private logNotification(
+        type: 'info' | 'warning' | 'error',
+        message: string,
+        options?: {
+            channelId?: string;
+            reason?: string;
+            actions?: string[];
+            wasSnoozed?: boolean;
+            snoozeReason?: string;
+        }
+    ) {
+        const entry = {
+            timestamp: Date.now(),
+            type,
+            message,
+            channelId: options?.channelId,
+            reason: options?.reason,
+            actions: options?.actions,
+            wasSnoozed: options?.wasSnoozed,
+            snoozeReason: options?.snoozeReason
+        };
+
+        this.notificationLog.push(entry);
+        
+        // Keep log size manageable
+        if (this.notificationLog.length > this.MAX_LOG_ENTRIES) {
+            this.notificationLog.shift();
+        }
+
+        // Console logging for debugging
+        const logPrefix = `🔔 [${type.toUpperCase()}]`;
+        const channelInfo = options?.channelId ? ` [${options.channelId}]` : '';
+        const reasonInfo = options?.reason ? ` (${options.reason})` : '';
+        const snoozeInfo = options?.wasSnoozed ? ` [SNOOZED: ${options.snoozeReason}]` : '';
+        
+        console.log(`${logPrefix}${channelInfo}${reasonInfo}${snoozeInfo} ${message}`);
+        
+        if (options?.actions) {
+            console.log(`🔔   Actions: [${options.actions.join(', ')}]`);
+        }
+    }
+
+    /**
+     * 📊 Get notification history for debugging
+     */
+    getNotificationLog(): typeof this.notificationLog {
+        return [...this.notificationLog];
+    }
+
+    /**
+     * 🧹 Clear notification log
+     */
+    clearNotificationLog(): void {
+        const count = this.notificationLog.length;
+        this.notificationLog = [];
+        console.log(`🔔 Cleared ${count} notification log entries`);
+    }
+
+    /**
+     * 📈 Get notification statistics
+     */
+    getNotificationStats(): {
+        total: number;
+        byType: Record<'info' | 'warning' | 'error', number>;
+        byChannel: Record<string, number>;
+        recentCount: number; // last hour
+        snoozeCount: number;
+    } {
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        
+        const stats = {
+            total: this.notificationLog.length,
+            byType: { info: 0, warning: 0, error: 0 },
+            byChannel: {} as Record<string, number>,
+            recentCount: 0,
+            snoozeCount: 0
+        };
+
+        this.notificationLog.forEach(entry => {
+            stats.byType[entry.type]++;
+            
+            if (entry.channelId) {
+                stats.byChannel[entry.channelId] = (stats.byChannel[entry.channelId] || 0) + 1;
+            }
+            
+            if (entry.timestamp > oneHourAgo) {
+                stats.recentCount++;
+            }
+            
+            if (entry.wasSnoozed) {
+                stats.snoozeCount++;
+            }
+        });
+
+        return stats;
+    }
+
+    /**
+     * 🧠 Smart Dev Server Detection with User Override
+     */
+    private isLikelyDevServer(channelId: string, channelName: string): boolean {
+        // First check if user has explicitly classified this channel
+        const userClassification = this.getUserChannelClassification(channelId);
+        if (userClassification !== null) {
+            return userClassification === 'dev';
+        }
+        
+        // Fall back to heuristic detection for unclassified channels
+        const devIndicators = [
+            'vite', 'webpack', 'dev-server', 'localhost', '127.0.0.1',
+            'dev', 'local', 'parcel', 'rollup', 'esbuild', 'next',
+            ':3000', ':8080', ':5173', ':4200'  // Common dev ports
+        ];
+        
+        const lowerChannelId = channelId.toLowerCase();
+        const lowerChannelName = channelName.toLowerCase();
+        
+        return devIndicators.some(indicator => 
+            lowerChannelId.includes(indicator) || lowerChannelName.includes(indicator)
+        );
+    }
+    
+    /**
+     * Get user's explicit classification for a channel
+     */
+    private getUserChannelClassification(channelId: string): 'dev' | 'production' | null {
+        const classifications = vscode.workspace.getConfiguration('healthWatch').get<Record<string, 'dev' | 'production'>>('channelClassifications', {});
+        return classifications[channelId] || null;
+    }
+    
+    /**
+     * Set user's explicit classification for a channel
+     */
+    private async setUserChannelClassification(channelId: string, classification: 'dev' | 'production'): Promise<void> {
+        const config = vscode.workspace.getConfiguration('healthWatch');
+        const classifications = config.get<Record<string, 'dev' | 'production'>>('channelClassifications', {});
+        classifications[channelId] = classification;
+        await config.update('channelClassifications', classifications, vscode.ConfigurationTarget.Workspace);
+    }
+
+    /**
+     * 🎯 Adaptive Snooze Durations based on Context
+     */
+    private getContextualSnoozeOptions(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel'): Array<{label: string, duration: number}> {
+        const isDevServer = this.isLikelyDevServer(channelId, channelId);
+        
+        if (isDevServer) {
+            return [
+                { label: '⏰ Quick break (30m)', duration: 30 * 60 * 1000 },
+                { label: '🍕 Lunch (2h)', duration: 2 * 60 * 60 * 1000 },
+                { label: '🔥 Working session (8h)', duration: 8 * 60 * 60 * 1000 },
+                { label: '🌙 Overnight (12h)', duration: 12 * 60 * 60 * 1000 },
+                { label: '📅 Daily dev (24h)', duration: 24 * 60 * 60 * 1000 },
+                { label: '🗓️ Weekly sprint (7d)', duration: 7 * 24 * 60 * 60 * 1000 }
+            ];
+        }
+
+        // Standard production service snooze options
+        return [
+            { label: '⏰ Brief issue (15m)', duration: 15 * 60 * 1000 },
+            { label: '🔧 Maintenance (1h)', duration: 60 * 60 * 1000 },
+            { label: '📞 Investigation (4h)', duration: 4 * 60 * 60 * 1000 },
+            { label: '🌙 Overnight (12h)', duration: 12 * 60 * 60 * 1000 },
+            { label: '📅 Daily (24h)', duration: 24 * 60 * 60 * 1000 }
+        ];
+    }
+
+    /**
+     * 🚨 Logged VS Code notification wrappers
+     */
+    private async showLoggedNotification(
+        type: 'info' | 'warning' | 'error',
+        message: string,
+        options?: { modal?: boolean },
+        ...actions: string[]
+    ): Promise<string | undefined> {
+        this.logNotification(type, message, { actions });
+        
+        switch (type) {
+            case 'error':
+                return await vscode.window.showErrorMessage(message, options || {}, ...actions);
+            case 'warning':
+                return await vscode.window.showWarningMessage(message, options || {}, ...actions);
+            case 'info':
+            default:
+                return await vscode.window.showInformationMessage(message, options || {}, ...actions);
+        }
     }
 
     private handleStateChange(channelId: string, oldState: string, newState: string) {
@@ -134,24 +339,75 @@ export class NotificationManager {
 
         const message = `${TerminologyMap.UILabels.monitoringSuggestion} for ${channelName}: ${condition.description}. ${TerminologyMap.UserActions.startWatch.buttonText}?`;
         
-        const choice = await vscode.window.showWarningMessage(
-            message,
-            { modal: false },
+        // 🧠 SMART NOTIFICATION: Check for known dev scenarios
+        const isDevServer = this.isLikelyDevServer(channelId, channelName);
+        const isExcessiveFailures = (condition.data?.consecutiveFailures || 0) > 100;
+        
+        // 🎯 ADAPTIVE UX: Different options for dev servers
+        const actions = isDevServer ? [
+            '🔥 Working Session (8h)',
+            '📅 Daily (24h)', 
+            '🗓️ Weekly (7d)',
+            '🛠️ Dev Mode (Forever)',
+            '⏰ Snooze Options...'
+        ] : [
             '1h',
-            '12h',
+            '12h', 
             'Forever',
             'Customize...',
             'Snooze...'
+        ];
+
+        // 📝 LOG: Channel behavior pattern
+        this.logNotification('warning', message, {
+            channelId,
+            reason: 'fishy_condition',
+            actions,
+            wasSnoozed: false
+        });
+
+        // Show classification hint and option to correct
+        const classificationHint = this.getUserChannelClassification(channelId) 
+            ? '' 
+            : isDevServer 
+                ? ' (detected as dev server)' 
+                : ' (detected as production)';
+
+        const choice = await vscode.window.showWarningMessage(
+            isDevServer 
+                ? `🛠️ Dev Server Alert: ${channelName}${classificationHint} has been offline for ${condition.data?.consecutiveFailures || 0} checks. Choose monitoring level:`
+                : `${message}${classificationHint}`,
+            { modal: false },
+            ...actions,
+            '🏷️ Reclassify...'
         );
 
-        if (choice && choice !== 'Snooze...') {
-            if (choice === 'Customize...') {
+        if (choice && !choice.includes('Snooze')) {
+            if (choice === '🏷️ Reclassify...') {
+                await this.showChannelClassificationDialog(channelId, channelName);
+                // Re-trigger fishy notification with correct classification
+                setTimeout(() => this.handleFishyCondition(channelId, condition), 100);
+                return;
+            } else if (choice === 'Customize...') {
                 await this.showCustomWatchDialog();
+            } else if (choice.includes('Working Session')) {
+                await this.startWatch(8 * 60 * 60 * 1000); // 8 hours in ms
+            } else if (choice.includes('Daily')) {
+                await this.startWatch(24 * 60 * 60 * 1000); // 24 hours in ms  
+            } else if (choice.includes('Weekly')) {
+                await this.startWatch(7 * 24 * 60 * 60 * 1000); // 7 days in ms
+            } else if (choice.includes('Dev Mode')) {
+                await this.startWatch('forever');
             } else {
-                await this.startWatch(choice as '1h' | '12h' | 'forever');
+                // Handle standard options
+                const standardChoice = choice.replace(/🔥|📅|🗓️|🛠️/g, '').trim();
+                await this.startWatch(standardChoice.includes('(') ? 
+                    standardChoice.split('(')[1].replace(')', '') as '1h' | '12h' | 'forever' :
+                    choice as '1h' | '12h' | 'forever'
+                );
             }
-        } else if (choice === 'Snooze...') {
-            await this.showSnoozeDialog(channelId, 'fishy');
+        } else if (choice && choice.includes('Snooze')) {
+            await this.showContextualSnoozeDialog(channelId, 'fishy');
         }
     }
 
@@ -334,6 +590,74 @@ export class NotificationManager {
 
         if (action === 'Cancel Snooze') {
             await this.clearSnooze(this.getSnoozeKey(channelId, reason));
+        } else if (action === 'View Snoozes') {
+            await this.showActiveSnoozes();
+        }
+    }
+
+    /**
+     * 🎯 Contextual snooze dialog with smart durations
+     */
+    private async showContextualSnoozeDialog(channelId: string, reason: 'fishy' | 'outage' | 'multi-channel') {
+        const options = this.getContextualSnoozeOptions(channelId, reason);
+        
+        const channels = this.configManager.getChannels();
+        const channel = channels.find(c => c.id === channelId);
+        const channelName = channel?.name || channelId;
+        const isDevServer = this.isLikelyDevServer(channelId, channelName);
+        
+        const title = isDevServer 
+            ? `🛠️ Snooze Dev Server: ${channelName}`
+            : `🔕 Snooze Channel: ${channelName}`;
+
+        const choice = await vscode.window.showQuickPick([
+            ...options.map(opt => ({
+                label: opt.label,
+                description: `Snooze for ${formatDuration(opt.duration)}`,
+                duration: opt.duration
+            })),
+            {
+                label: '⚙️ Custom duration...',
+                description: 'Enter a custom snooze time',
+                duration: -1
+            }
+        ], {
+            title,
+            placeHolder: isDevServer ? 'Choose dev-friendly snooze duration' : 'Select snooze duration'
+        });
+
+        if (!choice) {
+            return;
+        }
+
+        let duration = choice.duration;
+        if (duration === -1) {
+            const customDuration = await this.getCustomSnoozeTime();
+            if (!customDuration) {
+                return;
+            }
+            duration = customDuration;
+        }
+
+        await this.setSnooze(channelId, duration, reason);
+        
+        // 📝 LOG: Snooze action
+        this.logNotification('info', `Snoozed ${channelName} for ${formatDuration(duration)}`, {
+            channelId,
+            reason,
+            wasSnoozed: true,
+            snoozeReason: isDevServer ? 'dev_server_snooze' : 'standard_snooze'
+        });
+        
+        const durationStr = formatDuration(duration);
+        const message = reason === 'multi-channel' 
+            ? `🔕 Snoozed notifications for multiple channels (${durationStr})`
+            : `🔕 Snoozed notifications for ${channelName} (${durationStr})`;
+        
+        const action = await this.showLoggedNotification('info', message, undefined, 'Cancel Snooze', 'View Snoozes');
+        
+        if (action === 'Cancel Snooze') {
+            await this.cancelSnooze(channelId);
         } else if (action === 'View Snoozes') {
             await this.showActiveSnoozes();
         }
@@ -582,6 +906,84 @@ export class NotificationManager {
             await vscode.commands.executeCommand('healthWatch.openLastReport');
         } else if (choice === 'Export Data') {
             await vscode.commands.executeCommand('healthWatch.exportJSON');
+        }
+    }
+    
+    /**
+     * Cancel snooze for a specific channel
+     */
+    private async cancelSnooze(channelId?: string): Promise<void> {
+        if (channelId) {
+            // Find and cancel all snoozes for this channel
+            const keysToDelete: string[] = [];
+            for (const [key, snooze] of this.snoozeStates.entries()) {
+                if (snooze.channelId === channelId) {
+                    keysToDelete.push(key);
+                }
+            }
+            
+            for (const key of keysToDelete) {
+                await this.clearSnooze(key);
+            }
+            
+            if (keysToDelete.length > 0) {
+                vscode.window.showInformationMessage(`✓ Cancelled ${keysToDelete.length} snooze(s) for channel ${channelId}`);
+            } else {
+                vscode.window.showInformationMessage(`No active snoozes found for channel ${channelId}`);
+            }
+        } else {
+            // Cancel all snoozes
+            const count = this.snoozeStates.size;
+            this.snoozeStates.clear();
+            await this.saveSnoozeStates();
+            vscode.window.showInformationMessage(`✓ Cancelled all ${count} snoozes`);
+        }
+    }
+
+    /**
+     * Show dialog to let user classify a channel as dev or production
+     */
+    async showChannelClassificationDialog(channelId: string, channelName: string): Promise<void> {
+        const currentClassification = this.getUserChannelClassification(channelId);
+        const autoDetected = currentClassification ? '' : ' (auto-detected)';
+        
+        const choice = await vscode.window.showQuickPick([
+            {
+                label: '🛠️ Development Server',
+                description: 'Local development, testing, or staging environment',
+                detail: 'Gets development-friendly snooze options (8h sessions, daily/weekly cycles)',
+                classification: 'dev' as const
+            },
+            {
+                label: '🏭 Production Service',
+                description: 'Live production service or critical infrastructure',
+                detail: 'Gets production-focused snooze options (15m quick fixes, 1h maintenance)',
+                classification: 'production' as const
+            },
+            {
+                label: '🤖 Use Auto-Detection',
+                description: 'Let Health Watch automatically classify based on channel name',
+                detail: 'Uses heuristics like "localhost", ":3000", "dev", "vite", etc.',
+                classification: null
+            }
+        ], {
+            title: `🏷️ Classify Channel: ${channelName}`,
+            placeHolder: `Current: ${currentClassification ? currentClassification : 'auto-detected'}${autoDetected}`
+        });
+        
+        if (choice) {
+            if (choice.classification === null) {
+                // Remove explicit classification, use auto-detection
+                const config = vscode.workspace.getConfiguration('healthWatch');
+                const classifications = config.get<Record<string, 'dev' | 'production'>>('channelClassifications', {});
+                delete classifications[channelId];
+                await config.update('channelClassifications', classifications, vscode.ConfigurationTarget.Workspace);
+                vscode.window.showInformationMessage(`✓ Channel "${channelName}" will use auto-detection`);
+            } else {
+                await this.setUserChannelClassification(channelId, choice.classification);
+                const icon = choice.classification === 'dev' ? '🛠️' : '🏭';
+                vscode.window.showInformationMessage(`${icon} Channel "${channelName}" classified as ${choice.classification}`);
+            }
         }
     }
 

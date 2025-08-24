@@ -1,0 +1,26 @@
+{
+    "servers": {
+        // "mcp-server-time": {
+        //     "command": "python",
+        //     "args": [
+        //         "-m",
+        //         "mcp_server_time",
+        //         "--local-timezone=America/Los_Angeles"
+        //     ],
+        //     "env": {}
+        // },
+        "memory": {
+            "command": "npx",
+            "args": [
+                "@modelcontextprotocol/server-memory"
+            ],
+            "type": "stdio"
+        },
+        "health-watch": {
+            "type": "stdio",
+            "command": "node",
+            "args": [
+                "C:/Users/delir/Documents/repos/lossy/health-watch/src/mcp/standalone-server.js"],
+        }
+    }
+}

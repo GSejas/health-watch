@@ -26,6 +26,7 @@ import { OVERVIEW_CSS } from './components/overview';
 import { CHANNELS_CSS } from './components/channels';
 import { TIMELINE_CSS } from './components/timeline';
 import { MONITOR_CSS } from './components/monitor';
+import { DETAILS_CSS } from './components/details';
 
 /**
  * Complete dashboard CSS assembled from modular components
@@ -44,6 +45,8 @@ ${CHANNELS_CSS}
 ${TIMELINE_CSS}
 
 ${MONITOR_CSS}
+
+${DETAILS_CSS}
 </style>
 `;
 
@@ -54,5 +57,6 @@ export {
     OVERVIEW_CSS,
     CHANNELS_CSS,
     TIMELINE_CSS,
-    MONITOR_CSS
+    MONITOR_CSS,
+    DETAILS_CSS
 };

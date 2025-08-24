@@ -5,7 +5,6 @@
 Health Watch is a TypeScript VS Code extension that provides real-time monitoring of web services, APIs, and network endpoints. The system follows a layered architecture with probe-based monitoring, centralized storage, and web-based dashboards.
 
 ## Core Architecture
-
 ```mermaid
 graph TB
     subgraph "VS Code Extension Host"
@@ -44,6 +43,78 @@ graph TB
     STATUS --> SM
     TREES --> SM
 ```
+
+### Simplified diagrams (follow-ups, each focuses on one layer)
+
+```mermaid
+graph TB
+    subgraph "Extension Host (focus)"
+        EXT[Extension.ts - Entry Point]
+        CFG[ConfigManager - Configuration]
+        SCH[Scheduler - Orchestration]
+    end
+
+    EXT --> CFG
+    EXT --> SCH
+```
+
+```mermaid
+graph TB
+    subgraph "Monitoring Layer (focus)"
+        CR[ChannelRunner - Per-channel logic]
+        PROBES[Probes - HTTP/TCP/DNS/Script]
+        GUARDS[Guards - Rate limiting/backoff]
+    end
+
+    CR --> PROBES
+    CR --> GUARDS
+```
+
+```mermaid
+graph TB
+    subgraph "Storage Layer (focus)"
+        SM[StorageManager - In-memory cache]
+        DSM[DiskStorageManager - File persistence]
+        MYSQL[MySQLStorage - Database backend]
+    end
+
+    SM --> DSM
+    SM --> MYSQL
+```
+
+```mermaid
+graph TB
+    subgraph "UI Layer (focus)"
+        DASH[DashboardManager - Webview]
+        STATUS[StatusBar - VS Code integration]
+        TREES[TreeViews - Sidebar panels]
+    end
+
+    DASH --> STATUS
+    DASH --> TREES
+```
+
+### Interconnections (labels show how the focused diagrams link back to the big diagram)
+
+```mermaid
+graph TB
+    subgraph "Layers"
+        EH["Extension Host\n(EXT, CFG, SCH)"]
+        ML["Monitoring Layer\n(CR, PROBES, GUARDS)"]
+        SL["Storage Layer\n(SM, DSM, MYSQL)"]
+        UL["UI Layer\n(DASH, STATUS, TREES)"]
+    end
+
+    EH -->|EXT → SCH orchestration| ML
+    ML -->|CR → SM write samples / update channel state| SL
+    UL -->|DASH / STATUS / TREES → SM read runtime state| SL
+    EH -->|EXT → CFG configuration access| EH
+```
+
+Notes:
+- The first (large) diagram is unchanged and remains authoritative.
+- The four focused diagrams isolate internals of each layer without removing any components.
+- The Interconnections diagram labels the cross-layer edges present in the large diagram, indicating where the simplified diagrams connect back to each other.
 
 ## Key Components
 
