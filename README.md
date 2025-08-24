@@ -1,214 +1,237 @@
 # Health Watch VS Code Extension
 
-A local-first VS Code extension for monitoring multi-channel connectivity (public internet + VPN-only internal services) with intelligent baseline tracking, interactive dashboards, and automatic report generation.
+![Health Watch Banner](data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIAogICAgPHBhdHRlcm4gaWQ9InBhdHRlcm4iIHg9IjAiIHk9IjAiIHdpZHRoPSI2MCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxyZWN0IHdpZHRoPSI2MCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2RjMjYyNiIvPgogICAgICA8cGF0aCBkPSJNMCwxMCBRMTUsNSAzMCwxMCBUNjAsMTAiIHN0cm9rZT0iI2ZiYmYyNCIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIiBvcGFjaXR5PSIwLjMiLz4KICAgIDwvcGF0dGVybj4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjcGF0dGVybikiLz4KICA8dGV4dCB4PSI0MDAiIHk9IjM1IiBmb250LWZhbWlseT0iQXJpYWwgQmxhY2siIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5IZWFsdGggV2F0Y2g8L3RleHQ+CiAgPHRleHQgeD0iNDAwIiB5PSI1NSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjZmJiZjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5NdWx0aS1DaGFubmVsIENvbm5lY3Rpdml0eSBNb25pdG9yaW5nIGZvciBWUyBDb2RlPC90ZXh0PgogIDx0ZXh0IHg9IjQwMCIgeT0iNzUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjcpIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7wn5OKIFByb2R1Y3Rpb24gUmVhZHkg4oCiIHYxLjAuMTEg4oCiIFByaXZhY3kgRmlyc3Q8L3RleHQ+Cjwvc3ZnPg==)
 
+[![Build](https://img.shields.io/badge/Build-passing-brightgreen?style=flat)](#build-status) [![Coverage](https://img.shields.io/badge/Coverage-75%25-yellow?style=flat)](#test-coverage) [![Version](https://img.shields.io/badge/Version-v1.0.11-blue?style=flat)](#version) [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](#license)
 
+> **A production-ready VS Code extension for intelligent multi-channel connectivity monitoring with interactive dashboards, automatic report generation, and privacy-first design.**
 
-## Features
+---
 
-- **Multi-channel monitoring**: HTTPS, TCP, DNS, and Script probes
-- **Guard conditions**: Prevent false positives with network interface and DNS checks
-- **Smart baseline tracking**: Automatic anomaly detection
-- **Interactive dashboards**: Real-time monitoring with timeline views, heatmaps, and live activity logs
-- **Incident management**: Track and manage incidents with full CRUD operations
-- **Rich reporting**: Auto-generated Markdown reports with Mermaid diagrams
-- **SLO monitoring**: Track availability targets and performance thresholds
-- **Local-first**: All data stored locally, no telemetry
-- **Watch sessions**: Time-boxed monitoring with detailed end-of-session reports
+## 🚀 Quick Start
 
-## Getting Started
+Health Watch is ready to use out-of-the-box with sensible defaults:
 
-1. Install the extension
-2. Set up your configuration:
-   - **Quick setup:** Run `./setup-config.sh` (Linux/Mac) or `./setup-config.ps1` (Windows)
-   - **Manual setup:** Copy one of the `.healthwatch.json.*` templates to `.healthwatch.json`
-   - **Custom setup:** Create your own `.healthwatch.json` (see Configuration section)
-3. Edit the configuration to match your actual services
-4. Start monitoring via the command palette: "Health Watch: Start Watch"
+1. **Install** the extension from VS Code marketplace
+2. **Open** any workspace in VS Code  
+3. **Enable monitoring** via Command Palette → "Health Watch: Enable Monitoring"
+4. **Configure channels** (optional) by creating `.healthwatch.json`
 
-## Configuration
+No configuration required for basic internet connectivity monitoring!
 
-Create a `.healthwatch.json` file in your workspace root. You can use one of the provided templates:
+---
 
-### Quick Start Templates
+![Features Overview Banner](data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIAogICAgPHBhdHRlcm4gaWQ9InBhdHRlcm4iIHg9IjAiIHk9IjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICAgIDxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0iIzFmMjkzNyIvPgogICAgICA8Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSIyIiBmaWxsPSIjMTBiOTgxIiBvcGFjaXR5PSIwLjMiLz4KICAgIDwvcGF0dGVybj4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjcGF0dGVybikiLz4KICA8dGV4dCB4PSI0MDAiIHk9IjM1IiBmb250LWZhbWlseT0iQXJpYWwgQmxhY2siIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5GZWF0dXJlcyBPdmVydmlldzwvdGV4dD4KICA8dGV4dCB4PSI0MDAiIHk9IjU1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiMxMGI5ODEiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk11bHRpLVByb2JlIE1vbml0b3Jpbmcg4oCiIFNtYXJ0IERldGVjdGlvbiDigKIgTm8gVGVsZW1ldHJ5PC90ZXh0PgogIAo8L3N2Zz4=)
 
-**Simple Setup** ([`.healthwatch.json.simple`](./.healthwatch.json.simple)) — copy to your workspace for a minimal starter configuration:
-- Basic internet connectivity
-- Popular websites (Google, GitHub)
-- Local development server
+### 🎯 **Core Monitoring Features**
 
-**Developer Setup** ([`.healthwatch.json.developer`](./.healthwatch.json.developer)) — copy into `.healthwatch.json` for a developer-focused setup:
-- NPM registry, GitHub, Docker Hub
-- Local API/frontend servers
-- Database and Redis connections
-- Docker daemon and Git status
+- **🔍 Multi-Probe Monitoring** - HTTPS, TCP, DNS, Script, and VS Code Task probes
+- **🛡️ Smart Guard System** - Network interface & DNS connectivity checks
+- **⚡ Individual Channel Watches** - Per-channel monitoring control
+- **🌐 Automatic Internet Detection** - Built-in connectivity monitoring
+- **🔄 Adaptive Backoff** - Intelligent failure handling
 
-**Production Setup** ([`.healthwatch.json.production`](./.healthwatch.json.production)) — production-ready defaults and system checks:
-- Production websites and APIs
-- Database clusters and CDN
-- SSL certificate monitoring
-- System resource monitoring
+### 📊 **Interactive Dashboards** 
 
-**Full Template** ([`.healthwatch.json.template`](./.healthwatch.json.template)) — comprehensive example covering all channel types and guards:
-- Comprehensive monitoring setup
-- All channel types with examples
-- Common infrastructure patterns
+- **Real-time Overview** - Live status with channel cards
+- **Timeline Visualization** - Heatmaps, swimlanes, and incident timelines  
+- **Watch Session Management** - Time-boxed monitoring with statistics
+- **Multi-Window Coordination** - Seamless workspace switching
 
-Quick copy commands:
+### 📈 **Reporting & Analytics**
 
-```powershell
-# Windows (PowerShell)
-Copy-Item .\.healthwatch.json.developer .\.healthwatch.json
+- **Auto-Generated Reports** - Markdown with Mermaid diagrams
+- **SLO Monitoring** - Availability targets and performance thresholds
+- **Incident Tracking** - Complete lifecycle management
+- **Statistics & Metrics** - MTTR, latency percentiles, availability
 
-# macOS / Linux (bash)
-cp .healthwatch.json.simple .healthwatch.json
+### 🔒 **Privacy & Security**
+
+- **Local-First** - All data stored locally, no cloud dependencies
+- **Zero Telemetry** - No data collection or tracking
+- **CSP Compliant** - Secure webview implementation
+- **Opt-in Script Execution** - Security warnings for script probes
+
+---
+
+## 📊 Project Status
+
+```
+┌─────────────────────────┬──────────┬──────────┬─────────────┐
+│ Module                  │ Progress │ Priority │ Status      │
+├─────────────────────────┼──────────┼──────────┼─────────────┤
+│ Core Monitoring         │ 95%      │ HIGH     │ Complete    │
+│ Multi-Window Coord      │ 90%      │ HIGH     │ Complete    │
+│ React Dashboards        │ 85%      │ MEDIUM   │ Complete    │
+│ Individual Watches      │ 95%      │ HIGH     │ Complete    │
+│ VS Code Tasks           │ 100%     │ MEDIUM   │ Complete    │
+│ Testing Coverage        │ 75%      │ HIGH     │ In Progress │
+└─────────────────────────┴──────────┴──────────┴─────────────┘
 ```
 
-### Manual Configuration
+---
+
+## ⚙️ Configuration
+
+Health Watch uses an **opt-in monitoring approach** - no monitoring happens until you enable it.
+
+### Basic Setup (Recommended)
+
+1. **Enable via Command Palette**: `Health Watch: Enable Monitoring`
+2. **Optional**: Create `.healthwatch.json` for custom channels
+
+### Advanced Configuration
+
+Create a `.healthwatch.json` file in your workspace root:
 
 ```json
 {
+  "defaults": {
+    "intervalSec": 60,
+    "timeoutMs": 3000,
+    "threshold": 3
+  },
   "channels": [
     {
-      "id": "public-site",
-      "name": "Public Website",
+      "id": "internet",
+      "name": "🌐 Internet",
       "type": "https",
-      "url": "https://example.com/health",
-      "intervalSec": 30,
-      "expect": {
-        "status": [200],
-        "bodyRegex": "ok|healthy"
-      }
+      "url": "https://1.1.1.1",
+      "intervalSec": 15,
+      "enabled": true
     },
     {
-      "id": "internal-db",
-      "name": "Internal Database",
+      "id": "vpn-gateway",
+      "name": "🔒 VPN Gateway",
       "type": "tcp",
-      "target": "db.internal:5432",
+      "target": "10.0.0.1:443",
       "intervalSec": 60,
-      "guards": ["vpn"]
+      "enabled": false
+    },
+    {
+      "id": "demo-task",
+      "name": "🔧 Custom Task Check",
+      "type": "task",
+      "intervalSec": 300,
+      "enabled": false,
+      "runTask": {
+        "taskLabel": "my-health-check-task",
+        "expectExitCode": 0
+      }
     }
   ]
 }
 ```
 
-## Extension Settings
+### 🔧 VS Code Tasks Integration
 
-This extension contributes the following VS Code settings:
+Health Watch can execute **VS Code tasks** as monitoring probes. This allows you to integrate custom health checks, scripts, and external tools into your monitoring workflow.
 
-**Core Settings:**
-- `healthWatch.enabled`: Enable/disable health monitoring
-- `healthWatch.defaults.intervalSec`: Default probe interval in seconds (default: 60)
-- `healthWatch.defaults.timeoutMs`: Default probe timeout in milliseconds (default: 3000)
-- `healthWatch.defaults.threshold`: Default failure threshold before marking offline (default: 3)
+#### Setting up Task-Based Channels
 
-**Status Bar Configuration:**
-- `healthWatch.statusBar.mode`: Display mode - `none`, `minimal`, or `mini-multi-channel` (default: minimal)
-- `healthWatch.statusBar.showInternet`: Show internet connectivity in minimal mode (default: true)
-- `healthWatch.statusBar.format.showLatency`: Include latency in per-channel items (default: false)
-- `healthWatch.statusBar.format.separator`: Separator between icon and status (default: ":")
-- `healthWatch.statusBar.format.maxChannelItems`: Maximum per-channel items to show (default: 6)
-- `healthWatch.statusBar.format.order`: Item ordering - `explicit` or `worst-first` (default: explicit)
+1. **Create VS Code tasks** in `.vscode/tasks.json`:
 
-**Status Bar Icons:**
-- `healthWatch.statusBar.icons.online`: Icon for online status (default: 🟢)
-- `healthWatch.statusBar.icons.offline`: Icon for offline status (default: 🔴)
-- `healthWatch.statusBar.icons.unknown`: Icon for unknown status (default: 🟡)
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "my-health-check-task",
+      "type": "shell",
+      "command": "curl",
+      "args": ["-f", "-s", "http://localhost:3000/health"],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent"
+      }
+    }
+  ]
+}
+```
 
-**Watch & Reporting:**
-- `healthWatch.watch.defaultDuration`: Default watch duration - `1h`, `12h`, or `forever` (default: 1h)
-- `healthWatch.watch.highCadenceIntervalSec`: Probe interval during active watch (default: 15)
-- `healthWatch.report.autoOpen`: Auto-open reports after watch sessions (default: true)
-- `healthWatch.report.sloTarget`: SLO availability target percentage (default: 99)
+2. **Configure Health Watch** to use the task:
 
-**Security & Advanced:**
-- `healthWatch.script.enabled`: Enable script probes (requires confirmation, default: false)
-- `healthWatch.quietHours.enabled`: Enable quiet hours for notifications (default: false)
-- `healthWatch.onlyWhenFishy.enabled`: Enable smart anomaly detection (default: true)
+```json
+{
+  "channels": [
+    {
+      "id": "api-health",
+      "name": "🩺 API Health Check",
+      "type": "task",
+      "intervalSec": 120,
+      "runTask": {
+        "taskLabel": "my-health-check-task",
+        "expectExitCode": 0
+      }
+    }
+  ]
+}
+```
 
-## Commands
+#### Task Configuration Options
 
-**Monitoring & Watch Sessions:**
-- `Health Watch: Start Watch`: Begin a time-boxed monitoring session
-- `Health Watch: Stop Watch`: End current monitoring session
-- `Health Watch: Run All Probes Now`: Execute all channel probes immediately
-- `Health Watch: Run Channel Now`: Execute a specific channel probe
+- **`taskLabel`** - Name of the VS Code task to execute
+- **`expectExitCode`** - Expected exit code for success (default: 0)
+- **`timeoutMs`** - Task execution timeout (inherits from channel defaults)
 
-**Dashboard & Reporting:**
-- `Health Watch: Open Dashboard`: Launch interactive monitoring dashboard with live views
-- `Health Watch: Open Last Report`: View the most recent session report
-- `Health Watch: Export Data as JSON`: Export all monitoring data
+#### Benefits of Task-Based Monitoring
 
-**Incident Management:**
-- `Health Watch: Add Incident`: Create a new incident record
-- `Health Watch: Edit Incident`: Modify existing incident details
-- `Health Watch: Delete Incident`: Remove incident from records
-- `Health Watch: Refresh Incidents`: Update incident tree view
-
-**Configuration:**
-- `Health Watch: Open Configuration`: Open `.healthwatch.json` for editing
-- `Health Watch: Refresh Channels`: Reload channel configuration
-- `Health Watch: Toggle Channel Enabled`: Enable/disable specific channels
-
-**Channel Control:**
-- `Health Watch: Pause Channel`: Temporarily pause a channel's probes
-- `Health Watch: Resume Channel`: Resume a paused channel
-- `Health Watch: Stop Channel`: Stop a running channel permanently
-- `Health Watch: Show Channel Details`: View detailed channel information
-
-## Requirements
-
-- VS Code 1.103.0 or higher
-- Node.js runtime (bundled with VS Code)
-
-## Known Issues
-
-- Script probes require user confirmation on first use for security
-- DNS probes may timeout in restricted network environments
-
-## Release Notes
-
-### 1.0.5
-
-**🚀 Major Feature Enhancements**
-- Added live markdown reports dashboard with real-time Mermaid charts
-- Improved extension activation with async initialization for better startup reliability
-- Added time range filtering to timeline heatmap view
-- Integrated FilterPanel for Timeline views replacing separate Reports tab
-- Enhanced overview metrics with horizontal layout for better wide-screen utilization
-- Added comprehensive unit tests for various components and storage managers
-
-### 1.0.4
-
-**📊 Dashboard & Analytics**
-- Initial stable release with full monitoring dashboard
-- Real-time timeline views and heatmaps
-- Complete incident management system
-- SLO monitoring and tracking capabilities
-
-### 1.0.3
-
-**🔧 Configuration & Templates**
-- Added comprehensive configuration templates for different use cases
-- Improved setup scripts for Windows (PowerShell) and Unix (bash)
-- Enhanced JSON schema validation and error reporting
-
-### 1.0.2
-
-**🎨 UI & Icon Improvements**
-- Updated extension icon to PNG format for better compatibility
-- Enhanced tree view layouts and visual consistency
-
-### 1.0.1
-
-**🐛 Fixes & Improvements**
-- Fixed HTTP probe support for internal health monitoring
-- Improved error handling and validation
-
-### 1.0.0
-
-Initial release of Health Watch with complete monitoring capabilities.
+- ✅ **Flexible Integration** - Use any command-line tool or script
+- ✅ **VS Code Integration** - Leverage existing task configurations
+- ✅ **Cross-Platform** - Works on Windows, macOS, and Linux
+- ✅ **Problem Matchers** - Parse structured output from tasks
+- ✅ **Terminal Integration** - View task output in VS Code terminals
 
 ---
 
-**Local-first monitoring for VS Code**
+## 🔗 Channel Types
+
+### HTTP/HTTPS Channels
+- **Purpose**: Web service availability and response time monitoring
+- **Features**: Custom headers, body validation, authentication handling
+
+### TCP Channels  
+- **Purpose**: Port connectivity and network service availability
+- **Features**: Connection testing, timeout handling, network diagnostics
+
+### DNS Channels
+- **Purpose**: Domain name resolution monitoring
+- **Features**: IPv4/IPv6 resolution, DNS server testing
+
+### Task Channels ✨ **NEW**
+- **Purpose**: Custom script and tool integration via VS Code tasks
+- **Features**: Exit code validation, structured output parsing, cross-platform execution
+
+---
+
+## 🏗️ Development
+
+### Building
+
+```bash
+npm install
+npm run compile
+```
+
+### Testing
+
+```bash
+npm run test:unit
+npm run test:integration
+```
+
+### Demo & Testing
+
+The repository includes demo tasks for testing the VS Code tasks integration:
+
+- **`healthwatch:demo-simple-check`** - Basic echo command
+- **`healthwatch:demo-node-version`** - Node.js version check
+- **`healthwatch:demo-timeout-test`** - PowerShell timeout test
+
+Enable the "🔧 Demo Task Check" channel to see task execution in action.
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.

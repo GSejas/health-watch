@@ -1,0 +1,60 @@
+Module,Component,File Path,Status,Priority,Coverage %,Tests Count,Implementation Notes,Last Updated,Related Features
+Core Architecture,Extension Activation,test/unit/activation-smoke.test.ts,✅ Complete,Critical,90%,5,"Basic activation testing, needs enhancement",2025-08-21,Extension lifecycle
+Core Architecture,Configuration System,test/unit/config.test.ts,⚠️ Partial,Critical,75%,8,"Schema validation, needs workspace config tests",2025-08-21,Configuration management
+Core Architecture,Multi-Window Coordination,test/unit/multiWindowCoordination.test.ts,⚠️ Partial,Critical,70%,15,"Leader election, needs failover scenarios",2025-08-21,Multi-window support
+Core Architecture,Storage Management,test/unit/storage/ModularStorageManager.test.ts,✅ Complete,Critical,95%,30,"Comprehensive backend testing",2025-08-21,Storage abstraction
+Core Architecture,Channel Runner,test/unit/core/channels.test.ts,⚠️ Skeleton,Critical,25%,3,"State management, needs full implementation",2025-08-21,Channel orchestration
+Core Architecture,Scheduler System,test/unit/core/scheduler.test.ts,❌ Missing,Critical,0%,0,"Advanced scheduling logic not tested",2025-08-21,Probe scheduling
+Probes,HTTPS Monitoring,test/unit/probes.test.ts,⚠️ Partial,Critical,65%,12,"Basic HTTP tests, needs HTTPS-specific tests",2025-08-21,HTTPS probe
+Probes,TCP Monitoring,test/unit/probes.test.ts,⚠️ Partial,High,60%,8,"Basic TCP tests, needs timeout scenarios",2025-08-21,TCP probe
+Probes,DNS Resolution,test/unit/probes.test.ts,⚠️ Partial,High,70%,10,"DNS resolution tests, needs record type coverage",2025-08-21,DNS probe
+Probes,Script Execution,test/unit/probes.test.ts,⚠️ Partial,Medium,50%,6,"Basic script tests, needs security model tests",2025-08-21,Script probe
+Guards,Network Interface Detection,test/unit/guards.test.ts,⚠️ Partial,High,75%,8,"NetIfUp tests, needs platform coverage",2025-08-21,Network guards
+Guards,DNS Connectivity,test/unit/guards.test.ts,⚠️ Partial,High,70%,6,"DNS guard tests, needs timeout scenarios",2025-08-21,DNS guards
+Watch System,Global Watch Sessions,test/unit/watch/watchSession.test.ts,❌ Missing,Critical,0%,0,"Global watch lifecycle not tested",2025-08-21,Global watches
+Watch System,Individual Channel Watches,test/unit/watch/individualWatchManager.test.ts,✅ Complete,High,95%,42,"Comprehensive individual watch testing",2025-08-21,Individual watches
+Watch System,Watch Coordination,test/unit/watch/watchCoordination.test.ts,❌ Missing,High,0%,0,"Watch hierarchy not tested",2025-08-21,Watch precedence
+Watch System,Adaptive Backoff,test/unit/adaptiveBackoff.test.ts,✅ Complete,High,90%,12,"Backoff algorithm thoroughly tested",2025-08-21,Failure handling
+Storage,DiskStorage Backend,test/unit/storage/diskStorage.test.ts,⚠️ Partial,Critical,70%,15,"File operations, needs concurrency tests",2025-08-21,Disk persistence
+Storage,MySQL Backend,test/unit/storage/MySQLStorage.test.ts,✅ Complete,Medium,95%,25,"Complete MySQL testing with mocking",2025-08-21,MySQL support
+Storage,Sample Ring Buffer,test/unit/storage/core.test.ts,⚠️ Skeleton,High,30%,5,"Basic storage tests, needs retention policy tests",2025-08-21,Time-series storage
+Storage,Configuration Persistence,test/unit/storage/core.test.ts,⚠️ Partial,High,60%,8,"Config storage, needs workspace integration",2025-08-21,Config persistence
+UI Components,Status Bar Integration,test/unit/ui/statusBar.test.ts,⚠️ Skeleton,Critical,35%,6,"Basic status tests, needs aggregation logic",2025-08-21,Status display
+UI Components,Tree View Navigation,test/unit/ui/treeView.test.ts,❌ Missing,Critical,0%,0,"Tree provider not tested",2025-08-21,Navigation UI
+UI Components,Dashboard System,test/unit/ui/dashboard.test.ts,❌ Missing,High,0%,0,"Webview lifecycle not tested",2025-08-21,Dashboard UI
+UI Components,React Overview,test/unit/react/OverviewView.test.tsx,✅ Complete,High,95%,67,"Comprehensive React component testing",2025-08-21,Overview dashboard
+UI Components,React Timeline Navigation,test/unit/react/TimelineNavigation.test.tsx,✅ Complete,Medium,90%,25,"Complete navigation component testing",2025-08-21,Timeline navigation
+UI Components,React Timeline Heatmap,test/unit/react/TimelineHeatmapView.test.tsx,⚠️ Minimal,Medium,40%,8,"Basic heatmap tests, needs visualization tests",2025-08-21,Heatmap visualization
+UI Components,React Timeline Swimlanes,test/unit/react/TimelineSwimlanesView.test.tsx,⚠️ Minimal,Medium,35%,6,"Basic swimlanes tests, needs timeline accuracy",2025-08-21,Swimlanes view
+UI Components,React Timeline Incidents,test/unit/react/TimelineIncidentsView.test.tsx,⚠️ Minimal,Medium,40%,9,"Basic incidents tests, needs filtering tests",2025-08-21,Incidents view
+UI Components,React Metrics View,test/unit/react/MetricsView.test.tsx,⚠️ Partial,Medium,55%,12,"Metrics display tests, needs calculation validation",2025-08-21,Metrics dashboard
+UI Components,React Live Monitor,test/unit/react/LiveMonitorView.test.tsx,⚠️ Partial,Medium,50%,10,"Live monitoring tests, needs real-time updates",2025-08-21,Live monitoring
+UI Components,React Components Shared,test/unit/react/components.test.tsx,⚠️ Partial,Medium,45%,15,"Shared component tests, needs error boundaries",2025-08-21,Shared components
+Notifications,State Change Alerts,test/unit/ui/notifications.test.ts,❌ Missing,Critical,0%,0,"Notification system not tested",2025-08-21,Alert system
+Notifications,Smart Snoozing,test/unit/ui/notifications.test.ts,❌ Missing,High,0%,0,"Snooze system not tested",2025-08-21,Snooze management
+Notifications,Multi-Channel Detection,test/unit/ui/notifications.test.ts,❌ Missing,Medium,0%,0,"Group notifications not tested",2025-08-21,Group alerts
+Services,Internet Check Service,test/unit/internetService.test.ts,✅ Complete,High,85%,20,"Internet connectivity testing with mocks",2025-08-21,Internet monitoring
+Services,MCP Server Integration,test/unit/mcp/mcpServer.test.ts,❌ Missing,Medium,0%,0,"MCP integration not tested",2025-08-21,MCP protocol
+Statistics,Latency Calculations,test/unit/stats.test.ts,❌ Missing,High,0%,0,"Statistical calculations not tested",2025-08-21,Performance metrics
+Statistics,Availability Metrics,test/unit/stats.test.ts,❌ Missing,High,0%,0,"Availability calculations not tested",2025-08-21,Uptime tracking
+Statistics,MTTR Analysis,test/unit/outageDuration.test.ts,⚠️ Minimal,Medium,60%,8,"Basic duration tests, needs MTTR calculations",2025-08-21,Recovery metrics
+Statistics,Outage Detection,test/unit/stats.test.ts,❌ Missing,High,0%,0,"Outage identification not tested",2025-08-21,Failure detection
+Reports,Markdown Generation,test/unit/report.test.ts,❌ Missing,High,0%,0,"Report generation not tested",2025-08-21,Report system
+Reports,Mermaid Diagrams,test/unit/report.test.ts,❌ Missing,Medium,0%,0,"Diagram generation not tested",2025-08-21,Visualization
+Reports,JSON Export,test/unit/export.test.ts,❌ Missing,Medium,0%,0,"Data export not tested",2025-08-21,Data export
+CSS Architecture,Component System,test/unit/css-bundle.test.ts,✅ Complete,Medium,80%,12,"CSS bundling and injection testing",2025-08-21,Styling system
+CSS Architecture,Theme Integration,test/unit/css-bundle.test.ts,⚠️ Partial,Medium,60%,6,"Basic theme tests, needs VS Code integration",2025-08-21,Theme system
+Utilities,Dashboard Utilities,test/unit/dashboardUtils.test.ts,⚠️ Partial,Medium,65%,14,"Time formatting and data transformation",2025-08-21,Utility functions
+Utilities,Type Guards,test/unit/guards.test.ts,⚠️ Partial,Low,55%,8,"Type validation functions",2025-08-21,Type safety
+Performance,Memory Management,test/unit/performance/memory.test.ts,❌ Missing,Medium,0%,0,"Memory usage and cleanup not tested",2025-08-21,Resource management
+Performance,Resource Optimization,test/unit/performance/resources.test.ts,❌ Missing,Low,0%,0,"Resource usage patterns not tested",2025-08-21,Performance monitoring
+Security,Input Validation,test/unit/security/validation.test.ts,❌ Missing,Critical,0%,0,"Input sanitization not tested",2025-08-21,Security validation
+Security,CSP Compliance,test/unit/security/csp.test.ts,❌ Missing,Critical,0%,0,"Content Security Policy not tested",2025-08-21,Web security
+Integration,Extension Lifecycle,test/integration/extension.test.ts,❌ Missing,High,0%,0,"Full extension integration not tested",2025-08-21,Extension integration
+Integration,Storage Integration,test/integration/storage.test.ts,⚠️ Partial,High,60%,12,"Storage backend integration, needs failover tests",2025-08-21,Storage integration
+Integration,Coordinated Scheduler,test/integration/coordinatedScheduler.test.ts,⚠️ Partial,High,55%,10,"Scheduler coordination, needs multi-window tests",2025-08-21,Scheduler coordination
+Integration,Watch Storage,test/integration/storageWatch.test.ts,⚠️ Partial,Medium,50%,8,"Watch persistence integration",2025-08-21,Watch persistence
+End-to-End,Extension E2E,test/e2e/extension.test.ts,⚠️ Partial,Medium,45%,8,"Basic extension E2E, needs full workflow",2025-08-21,Full workflow
+End-to-End,Probe E2E,test/e2e/probes.test.ts,⚠️ Partial,Medium,40%,10,"Basic probe E2E, needs network scenarios",2025-08-21,Network testing
+End-to-End,Watch E2E,test/e2e/watch.test.ts,⚠️ Partial,Medium,35%,6,"Basic watch E2E, needs complete lifecycle",2025-08-21,Watch workflow
+End-to-End,Configuration E2E,test/e2e/config.test.ts,⚠️ Partial,Medium,50%,8,"Config loading E2E, needs validation scenarios",2025-08-21,Config workflow

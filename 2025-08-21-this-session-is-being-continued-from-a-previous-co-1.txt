@@ -52,7 +52,7 @@
   HIGH-5: Configuration Precedence Simplification
 
   Code Changes:
-  - Clear Hierarchy: channel.intervalSec > watch.highCadence > fishy.baseline > defaults.intervalSec
+  - Clear Hierarchy: channel.intervalSec > watch.highCadence > defaults.intervalSec
   - UI Indicators: Show "why this interval" explanations in tooltips
   - ConfigManager Refactor: Single getEffectiveInterval(channelId) method that shows precedence reasoning
 
@@ -62,13 +62,6 @@
   - MonitoringMode Enum: baseline | intensive | crisis | paused
   - State Indicators: Visual mode indicators in UI showing current monitoring intensity
   - Mode Descriptions: Clear explanations of what each mode means and when it's used
-
-  MEDIUM-6: Granular Channel Controls
-
-  Code Changes:
-  - Enhanced Channel Cards: Add pause/resume/edit/watch buttons to each channel
-  - Context Menus: Right-click actions for individual channels
-  - TreeView Actions: Per-channel action buttons in the service health tree
 
   The semanticMapping.ts file I created is the implementation foundation for fixing the terminology
   confusion - it provides the mapping between old confusing terms and new clear ones. The next step is

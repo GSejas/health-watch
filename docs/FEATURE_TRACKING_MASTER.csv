@@ -1,0 +1,87 @@
+Category,Feature,Status,Implementation,Tests,Documentation,Priority,Version Added,Notes
+Core Architecture,Extension Activation,Complete,✅,✅,✅,Critical,1.0.0,Multi-window coordination support
+Core Architecture,Configuration System,Complete,✅,✅,✅,Critical,1.0.0,JSON schema validation and precedence
+Core Architecture,Multi-Window Coordination,Complete,✅,✅,✅,Critical,1.0.5,Disk-based locking mechanism
+Core Architecture,Storage Management,Complete,✅,✅,✅,Critical,1.0.0,Multiple storage backends
+Core Architecture,Channel Runner,Complete,✅,✅,✅,Critical,1.0.0,Probe orchestration and state management
+Core Architecture,Scheduler System,Complete,✅,✅,✅,Critical,1.0.0,Adaptive scheduling with backoff
+Probes,HTTPS Monitoring,Complete,✅,✅,✅,Critical,1.0.0,Status code and content validation
+Probes,TCP Port Monitoring,Complete,✅,✅,✅,High,1.0.0,Socket connection testing
+Probes,DNS Resolution,Complete,✅,✅,✅,High,1.0.0,Multiple record type support
+Probes,Script Execution,Complete,✅,✅,✅,Medium,1.0.2,Opt-in security model
+Guards,Network Interface Detection,Complete,✅,✅,✅,High,1.0.1,VPN/tunnel awareness
+Guards,DNS Connectivity,Complete,✅,✅,✅,High,1.0.1,Pre-probe validation
+Watch System,Global Watch Sessions,Complete,✅,✅,✅,Critical,1.0.0,Time-boxed monitoring
+Watch System,Individual Channel Watches,Complete,✅,✅,✅,High,1.0.8,Per-channel monitoring control
+Watch System,Mixed Mode Monitoring,Complete,✅,✅,✅,Medium,1.0.8,Global + individual watches
+Watch System,Adaptive Backoff,Complete,✅,✅,✅,High,1.0.6,Smart failure handling
+Watch System,Watch Statistics,Complete,✅,✅,✅,Medium,1.0.8,Session analytics
+Storage,DiskStorage Backend,Complete,✅,✅,✅,Critical,1.0.0,JSON file persistence
+Storage,MySQL Backend,Complete,✅,✅,✅,Medium,1.0.3,Relational database support
+Storage,Modular Storage Manager,Complete,✅,✅,✅,High,1.0.4,Backend abstraction layer
+Storage,Sample Ring Buffer,Complete,✅,✅,✅,High,1.0.0,Bounded time-series storage
+Storage,Configuration Persistence,Complete,✅,✅,✅,High,1.0.0,Workspace settings management
+UI Components,Status Bar Integration,Complete,✅,✅,✅,Critical,1.0.0,Real-time status display
+UI Components,Tree View Navigation,Complete,✅,✅,✅,Critical,1.0.0,Channel hierarchy display
+UI Components,Dashboard System,Complete,✅,⚠️,✅,High,1.0.5,React-based webview dashboard
+UI Components,Timeline Views,Complete,✅,⚠️,✅,Medium,1.0.7,Heatmap and swimlanes visualization
+UI Components,Metrics Display,Complete,✅,⚠️,✅,Medium,1.0.7,Statistics and performance data
+UI Components,Channel Details Panel,Complete,✅,⚠️,✅,Medium,1.0.9,Comprehensive channel information
+UI Components,Live Monitor View,Complete,✅,⚠️,✅,Medium,1.0.8,Real-time monitoring interface
+Notifications,State Change Alerts,Complete,✅,✅,✅,Critical,1.0.0,Online/offline notifications
+Notifications,Smart Snoozing,Complete,✅,⚠️,✅,High,1.0.6,Contextual snooze options
+Notifications,Multi-Channel Detection,Complete,✅,⚠️,✅,Medium,1.0.7,Group outage handling
+Notifications,Fishy Detection,Removed,❌,❌,✅,N/A,Removed v1.0.10,Eliminated false positives
+Notifications,User Classification,Complete,✅,⚠️,✅,Medium,1.0.9,Dev/prod server detection
+Statistics,Latency Calculations,Complete,✅,✅,✅,High,1.0.0,Percentile and distribution metrics
+Statistics,Availability Metrics,Complete,✅,✅,✅,High,1.0.0,Uptime percentage tracking
+Statistics,MTTR Analysis,Complete,✅,✅,✅,Medium,1.0.4,Recovery time analytics
+Statistics,Outage Detection,Complete,✅,✅,✅,High,1.0.0,Failure streak identification
+Statistics,SLO Monitoring,Complete,✅,✅,✅,Medium,1.0.3,Service level objective tracking
+Reports,Markdown Generation,Complete,✅,✅,✅,High,1.0.0,Structured report creation
+Reports,Mermaid Diagrams,Complete,✅,✅,✅,Medium,1.0.2,Timeline and state visualizations
+Reports,JSON Export,Complete,✅,⚠️,✅,Medium,1.0.1,Raw data export capability
+Reports,Live Report Generation,Complete,✅,⚠️,✅,Medium,1.0.8,Real-time report updates
+Services,Internet Check Service,Complete,✅,✅,✅,High,1.0.8,Automatic connectivity monitoring
+Services,MCP Server Integration,Complete,✅,⚠️,✅,Medium,1.0.9,Model Context Protocol support
+CSS Architecture,Component System,Complete,✅,✅,✅,Medium,1.0.7,Modular CSS with CSP compliance
+CSS Architecture,Theme Integration,Complete,✅,✅,✅,Medium,1.0.7,VS Code theme compatibility
+CSS Architecture,Responsive Design,Complete,✅,⚠️,✅,Low,1.0.8,Multi-resolution support
+React Components,Overview Dashboard,Complete,✅,⚠️,✅,High,1.0.7,Main monitoring interface
+React Components,Timeline Components,Complete,✅,⚠️,✅,Medium,1.0.7,Time-series visualizations
+React Components,Metrics Components,Complete,✅,⚠️,✅,Medium,1.0.7,Statistical displays
+React Components,Filter Panels,Complete,✅,⚠️,✅,Medium,1.0.8,Data filtering controls
+React Components,Navigation Components,Complete,✅,⚠️,✅,Medium,1.0.8,UI navigation system
+Configuration,Channel Enable/Disable,Complete,✅,⚠️,✅,High,1.0.9,Runtime channel control
+Configuration,VS Code Settings Integration,Complete,✅,✅,✅,High,1.0.0,User preference management
+Configuration,Workspace Config Detection,Complete,✅,✅,✅,High,1.0.0,Project-specific settings
+Configuration,Schema Validation,Complete,✅,✅,✅,High,1.0.0,JSON schema enforcement
+Configuration,Template Generation,Complete,✅,⚠️,✅,Medium,1.0.6,Default config creation
+API,Public Extension API,Complete,✅,⚠️,✅,Medium,1.0.0,Programmatic access
+API,Command Registration,Complete,✅,✅,✅,High,1.0.0,VS Code command integration
+API,Event System,Complete,✅,✅,✅,High,1.0.0,Extension event handling
+Performance,Memory Management,Complete,✅,✅,✅,High,1.0.4,Bounded collections and cleanup
+Performance,Resource Optimization,Complete,✅,✅,✅,Medium,1.0.6,Efficient resource usage
+Performance,Startup Time,Complete,✅,⚠️,✅,Medium,1.0.0,Fast extension activation
+Security,CSP Compliance,Complete,✅,✅,✅,Critical,1.0.5,Content Security Policy adherence
+Security,Input Validation,Complete,✅,✅,✅,Critical,1.0.0,User input sanitization
+Security,Script Execution Safety,Complete,✅,✅,✅,High,1.0.2,Opt-in security model
+Security,No Telemetry,Complete,✅,✅,✅,High,1.0.0,Privacy-first approach
+Testing,Unit Test Coverage,Complete,✅,✅,✅,High,1.0.0,Comprehensive test suite
+Testing,Integration Tests,Complete,✅,✅,✅,High,1.0.5,Cross-component testing
+Testing,E2E Testing,Complete,✅,✅,✅,Medium,1.0.6,Full workflow validation
+Testing,React Component Tests,In Progress,✅,⚠️,✅,Medium,1.0.7,UI component validation
+Testing,Performance Tests,Planned,⚠️,❌,⚠️,Low,Future,Load and stress testing
+Documentation,Architecture Guides,Complete,✅,N/A,✅,High,1.0.0,System design documentation
+Documentation,API Documentation,Complete,✅,N/A,✅,High,1.0.0,Developer reference
+Documentation,User Guides,Complete,✅,N/A,✅,Medium,1.0.0,End-user documentation
+Documentation,Configuration Docs,Complete,✅,N/A,✅,High,1.0.0,Setup and configuration guides
+Documentation,Testing Guides,Complete,✅,N/A,✅,Medium,1.0.5,Test development documentation
+Quality Assurance,Error Handling,Complete,✅,✅,✅,Critical,1.0.0,Comprehensive error recovery
+Quality Assurance,Logging System,Complete,✅,✅,✅,High,1.0.0,Debug and operational logging
+Quality Assurance,Input Validation,Complete,✅,✅,✅,Critical,1.0.0,Data integrity validation
+Quality Assurance,Resource Cleanup,Complete,✅,✅,✅,High,1.0.4,Proper disposal patterns
+Future Features,Advanced Analytics,Planned,❌,❌,⚠️,Low,Future,Enhanced metrics and insights
+Future Features,Plugin Ecosystem,Planned,❌,❌,⚠️,Low,Future,Third-party integrations
+Future Features,Enterprise Features,Planned,❌,❌,⚠️,Low,Future,Advanced deployment tools
+Future Features,Mobile Dashboard,Planned,❌,❌,❌,Low,Future,Mobile-responsive interface

@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "healthwatch:check-api",
+      "type": "shell",
+      "command": "curl",
+      "args": [
+        "-f",
+        "-s", 
+        "-o", "/dev/null",
+        "--max-time", "30",
+        "--write-out", "HTTP_STATUS:%{http_code};TOTAL_TIME:%{time_total}",
+        "${config:healthwatch.apiUrl}/health"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": {
+        "owner": "healthwatch",
+        "pattern": {
+          "regexp": "^HTTP_STATUS:(\\d+);TOTAL_TIME:([\\d\\.]+)$",
+          "message": 1
+        }
+      },
+      "options": {
+        "env": {
+          "HEALTHWATCH_USER_AGENT": "HealthWatch/2.0 Monitoring"
+        }
+      }
+    },
+    {
+      "label": "healthwatch:check-api-authenticated",
+      "type": "shell",
+      "command": "curl",
+      "args": [
+        "-f",
+        "-s",
+        "-o", "/dev/null", 
+        "--max-time", "30",
+        "--header", "Authorization: Bearer ${config:healthwatch.apiToken}",
+        "--header", "Content-Type: application/json",
+        "--write-out", "HTTP_STATUS:%{http_code};TOTAL_TIME:%{time_total}",
+        "${config:healthwatch.apiUrl}/health"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "healthwatch",
+        "pattern": {
+          "regexp": "^HTTP_STATUS:(\\d+);TOTAL_TIME:([\\d\\.]+)$",
+          "message": 1
+        }
+      }
+    }
+  ]
+}

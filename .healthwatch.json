@@ -7,7 +7,7 @@
   "channels": [
     {
       "id": "internet",
-      "name": "🌐 Internet Connectivity", 
+      "name": "🌐 Internet Connectivity",
       "type": "https",
       "url": "https://1.1.1.1",
       "intervalSec": 15,
@@ -16,19 +16,23 @@
       "icon": "$(server)",
       "priority": "critical",
       "expect": {
-        "statusRange": [200, 499]
+        "statusRange": [
+          200,
+          499
+        ]
       }
     },
     {
       "id": "dns-check",
       "name": "🔍 DNS Resolution",
-      "type": "dns", 
+      "type": "dns",
       "hostname": "google.com",
       "intervalSec": 30,
       "timeoutMs": 2000,
       "threshold": 2,
       "icon": "$(globe)",
-      "priority": "critical"
+      "priority": "critical",
+      "enabled": false
     },
     {
       "id": "vpn-gateway",
@@ -58,10 +62,41 @@
       "id": "test-basic",
       "name": "🧪 Test Service",
       "type": "https",
-      "url": "https://httpbin.org/status/200", 
+      "url": "https://httpbin.org/status/200",
       "intervalSec": 300,
       "icon": "$(beaker)",
-      "priority": "low"
+      "priority": "low",
+      "enabled": false
+    },
+    {
+      "id": "demo-task",
+      "name": "🔧 Demo Task Check",
+      "type": "task",
+      "intervalSec": 60,
+      "timeoutMs": 10000,
+      "threshold": 2,
+      "icon": "$(tools)",
+      "priority": "low",
+      "enabled": true,
+      "runTask": {
+        "taskLabel": "healthwatch:demo-simple-check",
+        "expectExitCode": 0
+      }
+    },
+    {
+      "id": "node-version-task",
+      "name": "🟢 Node Version Check",
+      "type": "task",
+      "intervalSec": 300,
+      "timeoutMs": 10000,
+      "threshold": 1,
+      "icon": "$(symbol-misc)",
+      "priority": "low",
+      "enabled": false,
+      "runTask": {
+        "taskLabel": "healthwatch:demo-node-version",
+        "expectExitCode": 0
+      }
     }
   ]
 }

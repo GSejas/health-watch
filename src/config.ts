@@ -90,11 +90,35 @@ export interface ExpectationRules {
     treatAuthAsReachable?: boolean;
 }
 
+/**
+ * VS Code Task execution configuration (2025 best practices)
+ * Enables Health Watch to execute VS Code tasks as monitoring probes
+ */
+export interface TaskRunConfiguration {
+    /** Task label to execute (from tasks.json) */
+    label: string;
+    
+    /** Problem matcher name for structured output parsing */
+    problemMatcher?: string;
+    
+    /** Whether this is a long-running background task */
+    isBackground?: boolean;
+    
+    /** Maximum execution time in milliseconds */
+    timeout?: number;
+    
+    /** Number of retry attempts for failed tasks */
+    retryAttempts?: number;
+    
+    /** Enable telemetry logging for task execution events */
+    telemetryEvents?: boolean;
+}
+
 export interface ChannelDefinition {
     id: string;
     name?: string;
     description?: string;
-    type: 'https' | 'http' | 'tcp' | 'dns' | 'script';
+    type: 'https' | 'http' | 'tcp' | 'dns' | 'script' | 'task';
     intervalSec?: number;
     timeoutMs?: number;
     threshold?: number;
@@ -106,16 +130,23 @@ export interface ChannelDefinition {
     icon?: string;                    // Emoji or icon string for display in tree view and status bar
     showInStatusBar?: boolean;        // Whether to show this channel individually in status bar
     
+    // HTTP/HTTPS specific
     url?: string;
     expect?: ExpectationRules;
     
+    // TCP specific  
     target?: string;
     
+    // DNS specific
     hostname?: string;
     recordType?: 'A' | 'AAAA' | 'CNAME' | 'MX' | 'TXT';
     
+    // Script specific
     command?: string;
     shell?: 'cmd' | 'powershell' | 'bash';
+    
+    // Task specific (NEW - VS Code tasks integration)
+    runTask?: TaskRunConfiguration;
 }
 
 export interface HealthWatchConfig {

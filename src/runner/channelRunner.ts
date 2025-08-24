@@ -7,6 +7,7 @@ import { HttpsProbe } from '../probes/https';
 import { TcpProbe } from '../probes/tcp';
 import { DnsProbe } from '../probes/dns';
 import { ScriptProbe } from '../probes/script';
+import { TaskProbe } from '../probes/task';
 import { AdaptiveBackoffStrategy, BackoffInput } from './adaptiveBackoff';
 
 export interface ChannelEvents {
@@ -172,6 +173,9 @@ export class ChannelRunner extends EventEmitter {
                     throw new Error('Script probes are disabled');
                 }
                 return await this.scriptProbe.probe(channelWithDefaults);
+            
+            case 'task':
+                return await TaskProbe.executeProbe(channelWithDefaults);
             
             default:
                 throw new Error(`Unsupported probe type: ${(channel as any).type}`);

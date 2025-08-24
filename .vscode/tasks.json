@@ -59,6 +59,55 @@
 				"npm: watch-tests"
 			],
 			"problemMatcher": []
+		},
+		{
+			"label": "healthwatch:demo-node-version",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"--version"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": false,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "healthwatch:demo-simple-check",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"Health Watch Task Demo - Status: HEALTHY"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": false,
+				"clear": false
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "healthwatch:demo-timeout-test",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-Command",
+				"Start-Sleep -Seconds 2; Write-Output 'Task completed after 2 seconds'"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"options": {
+				"cwd": "${workspaceFolder}"
+			}
 		}
 	]
 }

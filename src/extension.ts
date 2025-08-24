@@ -63,17 +63,16 @@ async function initializeAsync(
     await storageManager.whenReady();
     console.log('Storage is ready, initializing components...');
     
-    // Initialize coordination manager
-    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const coordinationManager = new MultiWindowCoordinationManager(context, workspacePath);
+    // Initialize coordination manager (use global coordination, not workspace-specific)
+    const coordinationManager = new MultiWindowCoordinationManager(context);
     await coordinationManager.startCoordination();
     
     // Initialize internet check service
     const internetService = new InternetCheckService(coordinationManager, storageManager);
     await internetService.start();
     
-    // Now safely initialize scheduler and runners
-    const scheduler = new Scheduler();
+    // Now safely initialize scheduler and runners with coordination
+    const scheduler = new CoordinatedScheduler(context, true);
     
     // Initialize UI components with internet service
     const statusBarManager = new StatusBarManager(scheduler, internetService);

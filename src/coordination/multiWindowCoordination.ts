@@ -110,6 +110,8 @@ export class MultiWindowCoordinationManager extends EventEmitter {
     private readonly LEADER_TIMEOUT = 30000; // 30 seconds
     private readonly LOCK_RETRY_INTERVAL = 2000; // 2 seconds
     private lockRetryTimer?: NodeJS.Timeout;
+    private consecutiveFailures = 0;
+    private readonly MAX_CONSECUTIVE_FAILURES = 5;
 
     constructor(
         private context: vscode.ExtensionContext,
@@ -191,6 +193,17 @@ export class MultiWindowCoordinationManager extends EventEmitter {
      */
     private async tryAcquireLeadership(): Promise<boolean> {
         try {
+            // Ensure directory exists before attempting operations
+            const lockDir = path.dirname(this.lockFilePath);
+            if (!fssync.existsSync(lockDir)) {
+                try {
+                    fssync.mkdirSync(lockDir, { recursive: true });
+                } catch (dirError) {
+                    console.warn('[Coordination] Failed to create lock directory, using fallback:', dirError);
+                    return false;
+                }
+            }
+
             // Check if lock file exists
             if (fssync.existsSync(this.lockFilePath)) {
                 const lockData = await this.readLockFile();
@@ -323,6 +336,12 @@ export class MultiWindowCoordinationManager extends EventEmitter {
         this.lockRetryTimer = setInterval(async () => {
             try {
                 if (this.role === 'follower') {
+                    // Circuit breaker: stop retrying if too many failures
+                    if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+                        console.warn('[Coordination] Too many failures, pausing leadership attempts');
+                        return;
+                    }
+
                     // Check if leader is still alive
                     const lockData = await this.readLockFile();
                     
@@ -330,7 +349,10 @@ export class MultiWindowCoordinationManager extends EventEmitter {
                         console.log('[Coordination] 🔄 Leader appears dead, attempting promotion');
                         const acquired = await this.tryAcquireLeadership();
                         if (acquired) {
+                            this.consecutiveFailures = 0; // Reset on success
                             await this.becomeLeader();
+                        } else {
+                            this.consecutiveFailures++;
                         }
                     }
                 }

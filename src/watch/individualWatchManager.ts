@@ -38,10 +38,88 @@ export interface IndividualWatchEvents {
     };
 }
 
+
 /**
- * 🏗️ **INDIVIDUAL WATCH MANAGER**
- * 
- * Manages both global and individual channel watch sessions
+ * Manages per-channel ("individual") watch sessions alongside an optional global watch session.
+ *
+ * This manager tracks active individual channel watches, coordinates them with a global watch,
+ * and emits events when watches start, stop, expire, or when the mixed-mode state changes.
+ *
+ * Key behaviors
+ * - Individual watches take precedence over a global watch for a specific channel: if an individual
+ *   watch is active for a channel, it is considered the "effective" watch for that channel.
+ * - Starting an individual watch for a channel will stop any existing individual watch for that channel.
+ * - Individual watch durations may be one of the presets ('1h', '12h', 'forever') or a numeric value
+ *   representing milliseconds. Preset durations are converted to milliseconds internally.
+ * - Watches with a finite duration have an expiration timer; when the timer fires the manager emits
+ *   a 'channelWatchExpired' event and stops the watch.
+ * - Watches are kept in memory for the session. Persistence hooks exist but are currently TODO.
+ *
+ * Events emitted (EventEmitter):
+ * - 'channelWatchStarted'   — emitted after an individual channel watch is successfully started.
+ * - 'channelWatchStopped'   — emitted after an individual channel watch is stopped (manually or on expiry).
+ * - 'channelWatchExpired'   — emitted when an individual watch reaches its configured duration.
+ * - 'mixedModeChanged'      — emitted whenever the combination of global and individual watches changes.
+ *
+ * Public API overview
+ * - isChannelWatched(channelId): boolean
+ *     Returns true if the channel is covered by an active individual watch or the active global watch.
+ *
+ * - getEffectiveWatch(channelId): WatchSession | IndividualChannelWatch | null
+ *     Returns the active individual watch for the channel if present, otherwise the global watch if active,
+ *     otherwise null.
+ *
+ * - getActiveWatchType(channelId): 'global' | 'individual' | 'baseline'
+ *     Returns which mode applies for the given channel.
+ *
+ * - startChannelWatch(channelId, options): Promise<IndividualChannelWatch>
+ *     Starts an individual watch for the given channel. Options:
+ *       - duration?: '1h' | '12h' | 'forever' | number  (milliseconds when number)
+ *       - intervalSec?: number                          (optional sampling interval metadata)
+ *       - timeoutMs?: number                            (optional request timeout metadata)
+ *     The method stops any existing individual watch for the channel before starting the new one,
+ *     persists state (currently a no-op stub), sets up an expiration timer for finite durations,
+ *     emits 'channelWatchStarted', and triggers a mixed-mode update.
+ *
+ * - stopChannelWatch(channelId): Promise<boolean>
+ *     Stops and removes the individual watch for the channel if present, clears any expiration timer,
+ *     persists state (stub), emits 'channelWatchStopped', and triggers a mixed-mode update. Returns
+ *     true if a watch was stopped, false if none existed.
+ *
+ * - stopAllChannelWatches(): Promise<number>
+ *     Stops all individual watches, returning the number of watches that were stopped.
+ *
+ * - setGlobalWatch(watch?: WatchSession): void
+ *     Sets or clears the global watch session and emits a mixed-mode update. The global watch is used
+ *     as a fallback for channels without an active individual watch.
+ *
+ * - getActiveWatches(): IndividualChannelWatch[]
+ *     Returns an array of currently active individual channel watches.
+ *
+ * - getWatchStatistics(): object
+ *     Returns a summary object containing global watch info, individual watch counts and channel list,
+ *     and whether mixed-mode (global + some individual) is active.
+ *
+ * - dispose(): void
+ *     Clears all timers, removes individual watches, unregisters event listeners, and performs cleanup.
+ *
+ * Persistence and migration
+ * - The manager reads the current global watch using the configured storage manager on construction,
+ *   but persistent storage for individual channel watches is currently not implemented (TODO).
+ * - persistWatchState and loadExistingWatches are present as hooks for future persistence/migration.
+ *
+ * Concurrency and timing notes
+ * - Timers for expiration use setTimeout and callbacks are asynchronous; stopChannelWatch may be
+ *   invoked from timer callbacks. Event emission uses Node's EventEmitter and happens synchronously
+ *   from the caller's stack (i.e., listeners execute immediately when emit is called).
+ *
+ * Example
+ * @example
+ * const mgr = new IndividualWatchManager();
+ * mgr.on('channelWatchStarted', ({ channelId, watch }) => { console.log('started', channelId); });
+ * await mgr.startChannelWatch('channel-1', { duration: '1h', intervalSec: 30 });
+ *
+ * @public
  */
 export class IndividualWatchManager extends EventEmitter implements WatchManager {
     private configManager = ConfigManager.getInstance();

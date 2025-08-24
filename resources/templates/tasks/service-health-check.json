@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "healthwatch:check-docker-container",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "inspect",
+        "${config:healthwatch.docker.containerName}",
+        "--format", "{{.State.Status}}"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "healthwatch",
+        "pattern": {
+          "regexp": "^(running|exited|dead)$",
+          "message": 1
+        }
+      }
+    },
+    {
+      "label": "healthwatch:check-systemd-service",
+      "type": "shell",
+      "command": "systemctl",
+      "args": [
+        "is-active",
+        "${config:healthwatch.service.name}"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "healthwatch",
+        "pattern": {
+          "regexp": "^(active|inactive|failed)$",
+          "message": 1
+        }
+      }
+    },
+    {
+      "label": "healthwatch:check-custom-service",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/check-service.sh",
+      "args": [
+        "${config:healthwatch.service.name}"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "healthwatch",
+        "pattern": {
+          "regexp": "^ERROR: (.*)$",
+          "message": 1
+        }
+      }
+    }
+  ]
+}
