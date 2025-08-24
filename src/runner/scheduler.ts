@@ -75,7 +75,7 @@ export class Scheduler extends EventEmitter {
 
         this.clearAllTimers();
         
-        const channels = this.configManager.getChannels();
+    const channels = this.configManager.getChannels().filter(c => (c as any).enabled !== false);
         const newScheduled = new Map<string, ScheduledChannel>();
 
         for (const channel of channels) {

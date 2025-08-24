@@ -142,3 +142,47 @@ This change affects:
 **No Breaking Changes:** Existing configurations continue to work exactly the same way, but now with predictable behavior and clear explanations.
 
 **Removed Complexity:** The confusing "fishy mode" baseline overrides have been eliminated, making the system much more understandable.
+
+# MISCONFIGURED CONFIG FILE:
+
+
+I’ll summarize what happens when .healthwatch.json is empty/missing/invalid and how UI/scheduler react.
+
+Checklist:
+- Missing file
+- Blank/malformed JSON
+- Valid but empty object
+- channels: [] (no channels)
+- All channels disabled
+
+## Behavior by case
+
+- Missing file
+  - Config watcher sets workspace config to null and triggers a refresh.
+  - Tree shows no channels; scheduler clears all timers and schedules none.
+  - Status bar (internet check) still works; commands still available.
+  - “Open Config” will offer to create a default file.
+
+- Blank/malformed JSON (parse error)
+  - Load fails with an error message (“Failed to load .healthwatch.json: …”).
+  - Last-known-good config is kept in memory (no change), so monitoring continues using previous channels.
+  - Once the file is fixed, it will reload.
+
+- Valid but empty object (e.g., {}) or schema-less environment
+  - If schema isn’t found, validation is skipped and the empty object is accepted.
+  - Config becomes empty; getChannels() returns [].
+  - Tree is empty and scheduler schedules nothing.
+
+- channels: [] explicitly
+  - Considered valid; getChannels() returns [].
+  - Tree is empty; scheduler clears timers and runs nothing.
+
+- All channels disabled (enabled === false)
+  - Tree filters disabled channels out, so it appears empty.
+  - Scheduler won’t schedule disabled channels.
+
+## Notes
+
+- Tree/location cache: with no channels, there are no clickable items and no stored config locations.
+- Status bar: still shows internet status; dashboard/details views will show “No channels configured.”
+- Safety: On invalid JSON, the system deliberately keeps the last good config; on valid-but-empty, it switches to “no channels.”

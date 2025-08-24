@@ -11,6 +11,7 @@ import { InternetCheckService, InternetStatus } from '../services/internetCheckS
 export class StatusBarManager {
     private statusBarItem: vscode.StatusBarItem;
     private channelItems: Map<string, vscode.StatusBarItem> = new Map();
+    private compactChannelsItem?: vscode.StatusBarItem;
     private debugStatusBarItem?: vscode.StatusBarItem;
     private coordinationStatusBarItem?: vscode.StatusBarItem;
     private configManager = ConfigManager.getInstance();
@@ -185,33 +186,32 @@ export class StatusBarManager {
     }
 
     private updateStatusBar() {
-        // Determine mode (none | minimal | mini-multi-channel)
+        // Always show global internet indicator when enabled (base layer)
+        this.updateGlobalInternetIndicator();
+        
+        // Add channel items based on mode (additional layer)
         const mode = this.getStatusBarMode();
 
         if (mode === 'none' || !this.configManager.isEnabled()) {
-            // hide everything
-            this.statusBarItem.hide();
             this.disposeChannelItems();
             return;
         }
 
         if (mode === 'mini-multi-channel') {
-            // create/update per-channel items and hide global item
-            this.statusBarItem.hide();
             this.updateChannelItems();
             return;
         }
 
         if (mode === 'compact') {
-            // show a single compact status bar item that aggregates channels
-            this.disposeChannelItems();
             this.updateCompactItem();
             return;
         }
 
-        // Default: minimal mode (single global status item)
+        // Default: minimal mode (no additional channel items)
         this.disposeChannelItems();
+    }
 
+    private updateGlobalInternetIndicator() {
         // Check if internet monitoring is enabled
         const internetConfig = vscode.workspace.getConfiguration('healthWatch.internet');
         const internetEnabled = internetConfig.get('enabled', true);
@@ -280,7 +280,7 @@ export class StatusBarManager {
     }
 
     private updateCompactItem() {
-        const channels = this.configManager.getChannels();
+        const channels = this.configManager.getChannels().filter((ch: ChannelDefinition) => ch.enabled !== false);
         const states = this.scheduler.getChannelRunner().getChannelStates() as Map<string, ChannelState>;
         const fmt = vscode.workspace.getConfiguration('healthWatch.statusBar.format');
         const showLatency = fmt.get<boolean>('showLatency', false);
@@ -326,33 +326,44 @@ export class StatusBarManager {
             tokens.push('...');
         }
 
-        // Determine aggregated background color by worst displayed state
-        let worst: 'online' | 'offline' | 'unknown' = 'online';
-        for (const ch of display) {
-            const s = states.get(ch.id);
-            if (!s) { worst = worst === 'offline' ? 'offline' : 'unknown'; continue; }
-            if (s.state === 'offline') { worst = 'offline'; break; }
-            if (s.state === 'unknown' && worst !== 'offline') { worst = 'unknown'; }
+        // Create or update compact channels item (separate from global internet)
+        if (!this.compactChannelsItem) {
+            this.compactChannelsItem = vscode.window.createStatusBarItem(
+                vscode.StatusBarAlignment.Left, 
+                99  // Lower priority than main internet item
+            );
+            this.compactChannelsItem.command = 'healthWatch.openDashboard';
         }
 
-        let backgroundColor: vscode.ThemeColor | undefined;
-        if (worst === 'offline') {
-            backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-        } else if (worst === 'unknown') {
-            backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        if (tokens.length > 0) {
+            // Determine aggregated background color by worst displayed state
+            let worst: 'online' | 'offline' | 'unknown' = 'online';
+            for (const ch of display) {
+                const s = states.get(ch.id);
+                if (!s) { worst = worst === 'offline' ? 'offline' : 'unknown'; continue; }
+                if (s.state === 'offline') { worst = 'offline'; break; }
+                if (s.state === 'unknown' && worst !== 'offline') { worst = 'unknown'; }
+            }
+
+            let backgroundColor: vscode.ThemeColor | undefined;
+            if (worst === 'offline') {
+                backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+            } else if (worst === 'unknown') {
+                backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+            } else {
+                backgroundColor = undefined;
+            }
+
+            // Tooltip with per-channel details
+            const tooltip = this.buildTooltip(states as unknown as Map<string, any>);
+
+            this.compactChannelsItem.text = tokens.join(' ');
+            this.compactChannelsItem.tooltip = tooltip;
+            this.compactChannelsItem.backgroundColor = backgroundColor;
+            this.compactChannelsItem.show();
         } else {
-            backgroundColor = undefined;
+            this.compactChannelsItem.hide();
         }
-
-        // Tooltip with per-channel details
-        const tooltip = this.buildTooltip(states as unknown as Map<string, any>);
-
-        // Set main status bar item text and tooltip
-        this.statusBarItem.text = tokens.join(' ');
-        this.statusBarItem.tooltip = tooltip;
-        this.statusBarItem.backgroundColor = backgroundColor;
-        this.statusBarItem.command = 'healthWatch.openDashboard';
-        this.statusBarItem.show();
         
         // Update debug status bar if enabled
         if (this.debugMode) {
@@ -361,7 +372,7 @@ export class StatusBarManager {
     }
 
     private updateChannelItems() {
-        const channels = this.configManager.getChannels();
+    const channels = this.configManager.getChannels().filter((ch: ChannelDefinition) => ch.enabled !== false);
     const states = this.scheduler.getChannelRunner().getChannelStates() as Map<string, ChannelState>;
         const fmt = vscode.workspace.getConfiguration('healthWatch.statusBar.format');
         const showLatency = fmt.get<boolean>('showLatency', false);
@@ -480,91 +491,6 @@ export class StatusBarManager {
         }
     }
 
-    private getShowInternetSetting(): boolean {
-        return vscode.workspace.getConfiguration('healthWatch.statusBar').get('showInternet', true);
-    }
-
-    private findInternetChannel(channels: Array<ChannelInfo | ChannelDefinition>): ChannelInfo | ChannelDefinition | null {
-        // Look for internet/public connectivity channels
-        const internetKeywords = ['internet', 'public', 'google', 'cloudflare', '8.8.8.8', '1.1.1.1', 'connectivity'];
-        
-        // First try to find by common internet hostnames
-        for (const channel of channels) {
-            if ((channel.type === 'https' || channel.type === 'http') && (channel as any).url) {
-                const url = String((channel as any).url).toLowerCase();
-                if (internetKeywords.some(keyword => url.includes(keyword))) {
-                    return channel;
-                }
-            }
-        }
-        
-        // Then try to find any public HTTP/HTTPS endpoint
-        for (const channel of channels) {
-            if ((channel.type === 'https' || channel.type === 'http') && (channel as any).url) {
-                const url = String((channel as any).url).toLowerCase();
-                if (!url.includes('localhost') && !url.includes('127.0.0.1')) {
-                    return channel;
-                }
-            }
-        }
-        
-        // Finally, return the first channel if available
-        return channels.length > 0 ? channels[0] : null;
-    }
-
-    private buildInternetTooltip(channel: any, state: any, watch?: any): string {
-        const lines: string[] = [];
-        
-        if (watch?.isActive) {
-            lines.push(`Health Watch - ${TerminologyMap.MonitoringModes.intensive.new}`);
-            const remaining = this.formatWatchRemaining(watch);
-            lines.push(`Duration: ${remaining}`);
-            lines.push(`Started: ${new Date(watch.startTime).toLocaleTimeString()}`);
-        } else {
-            lines.push(`Health Watch - ${TerminologyMap.MonitoringModes.baseline.new}`);
-        }
-        
-        // Add coordination status if enabled
-        if (this.scheduler instanceof CoordinatedScheduler) {
-            const isCoordinationEnabled = this.scheduler.isCoordinationEnabled();
-            if (isCoordinationEnabled) {
-                const coordinationManager = (this.scheduler as any)['coordinationManager'];
-                if (coordinationManager) {
-                    const isLeader = coordinationManager.isLeader();
-                    lines.push(`Mode: ${isLeader ? 'Leader' : 'Follower'} (Multi-window)`);
-                }
-            }
-        }
-        
-        lines.push('');
-        lines.push(`Channel: ${channel.name || channel.id}`);
-        lines.push(`Type: ${channel.type.toUpperCase()}`);
-        
-        if (channel.url) {
-            lines.push(`Target: ${channel.url}`);
-        } else if (channel.target) {
-            lines.push(`Target: ${channel.target}`);
-        }
-        
-        const displayState = state.state === 'online' ? TerminologyMap.ServiceStates.online.new : 
-                            state.state === 'offline' ? TerminologyMap.ServiceStates.offline.new : 
-                            TerminologyMap.ServiceStates.unknown.new;
-        lines.push(`Status: ${displayState.toUpperCase()}`);
-        
-        if (state.lastSample?.latencyMs) {
-            lines.push(`Latency: ${state.lastSample.latencyMs}ms`);
-        }
-        
-        if (state.lastSample?.error) {
-            lines.push(`Last Error: ${state.lastSample.error}`);
-        }
-        
-        lines.push('');
-        lines.push('Click to open dashboard');
-        
-        return lines.join('\n');
-    }
-
     private formatWatchRemaining(watch: any): string {
         if (watch.duration === 'forever') {
             return 'Forever';
@@ -602,7 +528,7 @@ export class StatusBarManager {
     }
 
     private buildTooltip(states: Map<string, any>): string {
-        const channels = this.configManager.getChannels();
+    const channels = this.configManager.getChannels().filter((ch: ChannelDefinition) => ch.enabled !== false);
         const lines: string[] = ['Health Watch Status'];
         lines.push('');
 
@@ -874,6 +800,9 @@ export class StatusBarManager {
         this.disposeDebugStatusBarItem();
         this.disposeCoordinationStatusBarItem();
         this.disposeChannelItems();
+        if (this.compactChannelsItem) {
+            this.compactChannelsItem.dispose();
+        }
     }
 
     private disposeCoordinationStatusBarItem(): void {
