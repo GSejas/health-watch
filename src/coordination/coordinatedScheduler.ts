@@ -78,6 +78,9 @@ export class CoordinatedScheduler extends Scheduler {
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             const workspacePath = workspaceFolder?.uri.fsPath;
             
+            console.log(`[CoordinatedScheduler] Workspace folder:`, workspaceFolder?.uri.fsPath);
+            console.log(`[CoordinatedScheduler] Available workspace folders:`, vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath));
+            
             this.coordinationManager = new MultiWindowCoordinationManager(
                 this.context,
                 workspacePath

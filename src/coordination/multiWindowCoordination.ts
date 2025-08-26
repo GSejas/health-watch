@@ -126,26 +126,30 @@ export class MultiWindowCoordinationManager extends EventEmitter {
      * 🔧 **INITIALIZATION & PATH SETUP**
      */
     private setupPaths(): void {
-        // Use workspace-specific coordination or global fallback
-        const coordinationDir = this.workspacePath 
-            ? path.join(this.workspacePath, '.vscode', 'healthwatch')
-            : path.join(os.tmpdir(), 'healthwatch-coordination');
+        // Use single global coordination directory for ALL VS Code instances
+        // This enables efficient resource sharing across all workspaces
+        const coordinationDir = path.join(os.tmpdir(), 'healthwatch-coordination');
+        console.log(`[Coordination] Using global coordination directory: ${coordinationDir}`);
 
         // Ensure coordination directory exists
         try {
             fssync.mkdirSync(coordinationDir, { recursive: true });
+            console.log(`[Coordination] Created coordination directory: ${coordinationDir}`);
         } catch (error) {
             console.warn('Failed to create coordination directory:', error);
-            // Fallback to temp directory
+            // Fallback to simpler temp directory  
             const fallbackDir = path.join(os.tmpdir(), 'healthwatch-fallback');
             fssync.mkdirSync(fallbackDir, { recursive: true });
             this.lockFilePath = path.join(fallbackDir, 'healthwatch.lock');
             this.stateFilePath = path.join(fallbackDir, 'shared-state.json');
+            console.log(`[Coordination] Using fallback paths: ${this.lockFilePath}`);
             return;
         }
 
         this.lockFilePath = path.join(coordinationDir, 'healthwatch.lock');
         this.stateFilePath = path.join(coordinationDir, 'shared-state.json');
+        console.log(`[Coordination] Lock file path: ${this.lockFilePath}`);
+        console.log(`[Coordination] State file path: ${this.stateFilePath}`);
     }
 
     /**
@@ -193,11 +197,15 @@ export class MultiWindowCoordinationManager extends EventEmitter {
      */
     private async tryAcquireLeadership(): Promise<boolean> {
         try {
+            console.log(`[Coordination] ${this.leaderId} attempting to acquire leadership`);
+            console.log(`[Coordination] Lock file path: ${this.lockFilePath}`);
+            
             // Ensure directory exists before attempting operations
             const lockDir = path.dirname(this.lockFilePath);
             if (!fssync.existsSync(lockDir)) {
                 try {
                     fssync.mkdirSync(lockDir, { recursive: true });
+                    console.log(`[Coordination] Created lock directory: ${lockDir}`);
                 } catch (dirError) {
                     console.warn('[Coordination] Failed to create lock directory, using fallback:', dirError);
                     return false;
@@ -206,17 +214,32 @@ export class MultiWindowCoordinationManager extends EventEmitter {
 
             // Check if lock file exists
             if (fssync.existsSync(this.lockFilePath)) {
+                console.log(`[Coordination] Lock file exists, checking current leader`);
                 const lockData = await this.readLockFile();
                 
-                if (lockData && this.isLeaderAlive(lockData)) {
-                    // Active leader exists
-                    console.log(`[Coordination] Active leader found: ${lockData.leaderId}`);
-                    return false;
+                if (lockData) {
+                    console.log(`[Coordination] Current lock data:`, {
+                        leaderId: lockData.leaderId,
+                        processId: lockData.processId,
+                        acquiredAt: new Date(lockData.acquiredAt).toISOString(),
+                        lastHeartbeat: new Date(lockData.lastHeartbeat).toISOString(),
+                        heartbeatAge: Date.now() - lockData.lastHeartbeat
+                    });
+                    
+                    if (this.isLeaderAlive(lockData)) {
+                        // Active leader exists
+                        console.log(`[Coordination] Active leader found: ${lockData.leaderId}, staying as follower`);
+                        return false;
+                    } else {
+                        console.log('[Coordination] Stale leader detected, cleaning up and acquiring leadership');
+                        await this.cleanupStaleLock();
+                    }
+                } else {
+                    console.log('[Coordination] Lock file exists but is unreadable, cleaning up');
+                    await this.cleanupStaleLock();
                 }
-                
-                // Lock file exists but leader is dead, clean up
-                console.log('[Coordination] Stale leader detected, acquiring leadership');
-                await this.cleanupStaleLock();
+            } else {
+                console.log(`[Coordination] No lock file exists, proceeding to acquire leadership`);
             }
 
             // Attempt to acquire lock atomically
@@ -229,18 +252,24 @@ export class MultiWindowCoordinationManager extends EventEmitter {
                 lastHeartbeat: Date.now()
             };
 
+            console.log(`[Coordination] Writing lock data for ${this.leaderId}`);
+
             // Atomic write using temp file + rename
             const tempLockPath = `${this.lockFilePath}.tmp.${process.pid}`;
             fssync.writeFileSync(tempLockPath, JSON.stringify(lockData, null, 2));
             fssync.renameSync(tempLockPath, this.lockFilePath);
 
+            // Brief delay to allow filesystem to settle
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // Verify we actually got the lock (race condition protection)
             const verifyLock = await this.readLockFile();
             if (verifyLock?.leaderId === this.leaderId) {
-                console.log(`[Coordination] ✅ Leadership acquired: ${this.leaderId}`);
+                console.log(`[Coordination] ✅ Leadership acquired and verified: ${this.leaderId}`);
                 return true;
             } else {
-                console.log(`[Coordination] ❌ Leadership acquisition failed - race condition`);
+                console.log(`[Coordination] ❌ Leadership acquisition failed - race condition detected`);
+                console.log(`[Coordination] Expected: ${this.leaderId}, Got: ${verifyLock?.leaderId}`);
                 return false;
             }
 

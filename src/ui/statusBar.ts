@@ -115,66 +115,54 @@ export class StatusBarManager {
             return;
         }
 
-        const coordinationManager = (this.scheduler as any)['coordinationManager'];
+        // Use proper public API instead of accessing private fields
+        const coordinationStatus = this.scheduler.getCoordinationStatus();
         
-        if (!coordinationManager) {
-            this.coordinationStatusBarItem.text = '❓ Coord';
-            this.coordinationStatusBarItem.tooltip = 'Health Watch Coordination\n\nStatus: Manager not available';
-            this.coordinationStatusBarItem.show();
-            return;
-        }
-
-        const isEnabled = this.scheduler.isCoordinationEnabled();
-        const isLeader = coordinationManager.isLeader?.() || false;
-        const hasLock = coordinationManager.hasLock?.() || false;
-        const instanceId = coordinationManager.getInstanceId?.() || 'unknown';
-
         let statusText: string;
         let statusTooltip: string;
         let backgroundColor: vscode.ThemeColor | undefined;
 
-        if (!isEnabled) {
-            // Single window mode
+        if (!coordinationStatus.enabled) {
+            // Coordination disabled - single window mode
             statusText = '🔧 Solo';
             statusTooltip = 'Health Watch Coordination\n\nMode: Single Window\nAll monitoring is handled by this window';
             backgroundColor = undefined;
+        } else if (!coordinationStatus.role) {
+            // Coordination enabled but role not determined yet
+            statusText = '⏳ Init';
+            statusTooltip = 'Health Watch Coordination\n\nStatus: Initializing...\nDetermining leader/follower role';
+            backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
         } else {
             // Multi-window coordination active
-            if (isLeader) {
-                if (hasLock) {
-                    statusText = '👑🔒 Master';
-                    statusTooltip = 'Health Watch Coordination\n\nRole: Master (Leader)\nLock: Acquired ✅\nThis window is actively monitoring';
-                    backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
-                } else {
-                    statusText = '👑🔓 Leader';
-                    statusTooltip = 'Health Watch Coordination\n\nRole: Leader\nLock: Released ⚠️\nTrying to acquire lock...';
+            switch (coordinationStatus.role) {
+                case 'leader':
+                    if (coordinationStatus.isActiveMonitor) {
+                        statusText = '👑🔒 Master';
+                        statusTooltip = 'Health Watch Coordination\n\nRole: Master (Leader)\nStatus: Actively monitoring ✅';
+                        backgroundColor = new vscode.ThemeColor('statusBarItem.prominentBackground');
+                    } else {
+                        statusText = '👑🔓 Leader';
+                        statusTooltip = 'Health Watch Coordination\n\nRole: Leader\nStatus: Acquiring monitoring lock...';
+                        backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+                    }
+                    break;
+                case 'follower':
+                    statusText = '👥 Follower';
+                    statusTooltip = 'Health Watch Coordination\n\nRole: Follower\nStatus: Delegating to active leader';
+                    backgroundColor = undefined;
+                    break;
+                case 'initializing':
+                default:
+                    statusText = '⏳ Init';
+                    statusTooltip = 'Health Watch Coordination\n\nStatus: Initializing...\nDetermining coordination role';
                     backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-                }
-            } else {
-                statusText = '👥 Follower';
-                statusTooltip = 'Health Watch Coordination\n\nRole: Follower\nThis window is delegating monitoring to the master';
-                backgroundColor = undefined;
+                    break;
             }
         }
 
-        // Add instance info to tooltip
-        statusTooltip += `\n\nInstance ID: ${instanceId.substring(0, 8)}...`;
-        
-        // Add timing information if available
-        const nextElectionTime = coordinationManager.getNextElectionTime?.();
-        if (nextElectionTime) {
-            const remaining = Math.max(0, nextElectionTime - Date.now());
-            if (remaining > 0) {
-                const seconds = Math.ceil(remaining / 1000);
-                statusTooltip += `\nNext election: ${seconds}s`;
-            }
-        }
-
-        // Add heartbeat info if available
-        const lastHeartbeat = coordinationManager.getLastHeartbeat?.();
-        if (lastHeartbeat) {
-            const heartbeatAge = Math.floor((Date.now() - lastHeartbeat) / 1000);
-            statusTooltip += `\nLast heartbeat: ${heartbeatAge}s ago`;
+        // Add leader info if available
+        if (coordinationStatus.leaderId) {
+            statusTooltip += `\n\nLeader ID: ${coordinationStatus.leaderId.substring(0, 8)}...`;
         }
 
         statusTooltip += '\n\nClick for coordination details';

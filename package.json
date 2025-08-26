@@ -2,7 +2,7 @@
   "name": "health-watch",
   "displayName": "Health Watch",
   "description": "Multi-channel connectivity monitoring with automated reporting and real-time dashboards",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "publisher": "GSejas",
   "icon": "resources/icon.png",
   "license": "MIT",
