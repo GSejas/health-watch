@@ -158,8 +158,8 @@ describe('CoordinatedScheduler Integration', () => {
             
             // Verify shared state was updated
             const sharedState = await scheduler['coordinationManager']?.getSharedState();
-            expect(sharedState?.channels['test-https']).toBeDefined();
-            expect(sharedState?.channels['test-https'].state).toBe('online');
+            expect(sharedState?.channelStates['test-https']).toBeDefined();
+            expect(sharedState?.channelStates['test-https'].state).toBe('online');
         });
 
         it('should follow shared state when not leader', async () => {

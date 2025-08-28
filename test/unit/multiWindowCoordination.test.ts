@@ -138,7 +138,7 @@ class TestMultiWindowCoordinationManager extends EventEmitter {
     
     async updateChannelState(channelId: string, state: any): Promise<void> {
         if (this.isLeaderFlag) {
-            this.sharedState.channels[channelId] = state;
+            this.sharedState.channelStates[channelId] = state;
             this.sharedState.lastUpdate = Date.now();
             await fs.writeFile(this.config.sharedStateFilePath, JSON.stringify(this.sharedState));
         }
@@ -301,7 +301,7 @@ describe('MultiWindowCoordinationManager', () => {
             await manager.updateChannelState('test-channel', testChannelState);
             
             const sharedState = await manager.getSharedState();
-            expect(sharedState.channels['test-channel']).toEqual(testChannelState);
+            expect(sharedState.channelStates['test-channel']).toEqual(testChannelState);
         });
 
         it('should not update shared state when follower', async () => {

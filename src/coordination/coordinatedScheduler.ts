@@ -43,7 +43,7 @@ export interface CoordinatedSchedulerEvents {
  * Wraps the core scheduler with multi-window coordination intelligence
  */
 export class CoordinatedScheduler extends Scheduler {
-    private coordinationManager?: MultiWindowCoordinationManager;
+    private coordinationManager?: InstanceType<typeof MultiWindowCoordinationManager>;
     private coordinationEnabled = false;
     private lastSharedStateSync = 0;
     private readonly SYNC_THROTTLE_MS = 1000; // Limit shared state updates to 1/second
@@ -111,7 +111,7 @@ export class CoordinatedScheduler extends Scheduler {
         if (!this.coordinationManager) return;
 
         // Handle role changes
-        this.coordinationManager.on('roleChanged', async (event) => {
+        this.coordinationManager.on('roleChanged', async (event: { oldRole: CoordinationRole; newRole: CoordinationRole }) => {
             console.log(`[CoordinatedScheduler] Role changed: ${event.oldRole} → ${event.newRole}`);
             
             if (event.newRole === 'leader') {
@@ -126,14 +126,14 @@ export class CoordinatedScheduler extends Scheduler {
         });
 
         // Handle shared state updates (followers only)
-        this.coordinationManager.on('stateUpdated', (event) => {
+        this.coordinationManager.on('stateUpdated', (event: { sharedState: SharedMonitoringState }) => {
             if (this.coordinationManager?.isFollower()) {
                 this.handleSharedStateUpdate(event.sharedState);
             }
         });
 
         // Handle coordination errors
-        this.coordinationManager.on('coordinationError', (event) => {
+        this.coordinationManager.on('coordinationError', (event: { error: Error; context: string }) => {
             console.error('[CoordinatedScheduler] Coordination error:', event.error);
             
             // Consider disabling coordination on persistent errors
@@ -141,12 +141,12 @@ export class CoordinatedScheduler extends Scheduler {
         });
 
         // Handle leadership events
-        this.coordinationManager.on('leadershipAcquired', (event) => {
+        this.coordinationManager.on('leadershipAcquired', (event: { leaderId: string }) => {
             console.log(`[CoordinatedScheduler] 🏆 Leadership acquired: ${event.leaderId}`);
             this.emit('leadershipTransition', { newLeaderId: event.leaderId });
         });
 
-        this.coordinationManager.on('leadershipLost', (event) => {
+        this.coordinationManager.on('leadershipLost', (event: { reason: string }) => {
             console.log(`[CoordinatedScheduler] ❌ Leadership lost: ${event.reason}`);
         });
     }

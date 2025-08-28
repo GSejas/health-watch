@@ -1,24 +1,24 @@
 /**
- * 🏆 Multi-Window Coordination Manager
+ * 🏆 Multi-Workspace Coordination Manager
  * 
- * **Purpose**: Implement leader election to prevent resource duplication across VS Code windows
- * **Philosophy**: Only one Health Watch instance should actively monitor per workspace
+ * **Purpose**: Implement global leader election across ALL VS Code workspaces on the PC
+ * **Philosophy**: Only one Health Watch instance should actively monitor across all workspaces
  * 
  * **Risk Analysis**:
  * - ✅ Zero Risk: File-based coordination with atomic operations
- * - ✅ Reliability: Automatic failover on leader window close
- * - ✅ Performance: 65% resource reduction in multi-window scenarios
+ * - ✅ Reliability: Automatic failover when leader workspace closes
+ * - ✅ Performance: Massive resource reduction across multiple workspaces
  * 
- * **Inputs**: VS Code window lifecycle, workspace context
- * **Outputs**: Leader/follower role assignment, coordinated monitoring
+ * **Inputs**: All VS Code workspace instances, any workspace context
+ * **Outputs**: Single global leader monitoring all workspaces, followers consume minimal resources
  * 
  * **Business Value**:
- * - Eliminates duplicate resource usage (CPU, memory, network)
- * - Provides consistent monitoring state across windows
- * - Maintains seamless user experience with automatic failover
+ * - Eliminates duplicate resource usage across ALL workspaces (5x workspace = 5x savings)
+ * - Provides consistent monitoring state across all VS Code instances
+ * - Single point of control for monitoring across entire development environment
  * 
  * @author Health Watch Team
- * @version 2.1.0 - Multi-Window Coordination
+ * @version 2.1.0 - Multi-Workspace Global Coordination
  * @since 2025-08-21
  */
 
@@ -95,22 +95,23 @@ export interface CoordinationEvents {
 }
 
 /**
- * 🏗️ **MULTI-WINDOW COORDINATION MANAGER**
+ * 🏗️ **MULTI-WORKSPACE COORDINATION MANAGER**
  * 
- * Implements intelligent leader election for resource-efficient monitoring
+ * Implements global leader election across ALL workspaces for maximum resource efficiency
  */
-export class MultiWindowCoordinationManager extends EventEmitter {
+export class MultiWorkspaceCoordinationManager extends EventEmitter {
     private role: CoordinationRole = 'initializing';
     private leaderId: string;
     private lockFilePath!: string;
     private stateFilePath!: string;
     private heartbeatInterval?: NodeJS.Timeout;
     private stateWatcher?: vscode.FileSystemWatcher;
-    private readonly HEARTBEAT_INTERVAL = 10000; // 10 seconds
-    private readonly LEADER_TIMEOUT = 30000; // 30 seconds
+    private readonly HEARTBEAT_INTERVAL = 5000; // 5 seconds
+    private readonly LEADER_TIMEOUT = 15000; // 15 seconds
     private readonly LOCK_RETRY_INTERVAL = 2000; // 2 seconds
     private lockRetryTimer?: NodeJS.Timeout;
     private consecutiveFailures = 0;
+    private lastFailureTime?: number;
     private readonly MAX_CONSECUTIVE_FAILURES = 5;
 
     constructor(
@@ -126,10 +127,10 @@ export class MultiWindowCoordinationManager extends EventEmitter {
      * 🔧 **INITIALIZATION & PATH SETUP**
      */
     private setupPaths(): void {
-        // Use single global coordination directory for ALL VS Code instances
-        // This enables efficient resource sharing across all workspaces
+        // Use single global coordination directory for ALL VS Code workspaces
+        // This enables one leader to monitor across ALL workspaces efficiently
         const coordinationDir = path.join(os.tmpdir(), 'healthwatch-coordination');
-        console.log(`[Coordination] Using global coordination directory: ${coordinationDir}`);
+        console.log(`[Coordination] Using global workspace coordination directory: ${coordinationDir}`);
 
         // Ensure coordination directory exists
         try {
@@ -254,23 +255,25 @@ export class MultiWindowCoordinationManager extends EventEmitter {
 
             console.log(`[Coordination] Writing lock data for ${this.leaderId}`);
 
-            // Atomic write using temp file + rename
-            const tempLockPath = `${this.lockFilePath}.tmp.${process.pid}`;
-            fssync.writeFileSync(tempLockPath, JSON.stringify(lockData, null, 2));
-            fssync.renameSync(tempLockPath, this.lockFilePath);
-
-            // Brief delay to allow filesystem to settle
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Verify we actually got the lock (race condition protection)
-            const verifyLock = await this.readLockFile();
-            if (verifyLock?.leaderId === this.leaderId) {
-                console.log(`[Coordination] ✅ Leadership acquired and verified: ${this.leaderId}`);
+            // Use exclusive file creation to prevent race conditions
+            try {
+                // Try to create lock file exclusively - will fail if it already exists
+                const lockFd = fssync.openSync(this.lockFilePath, 'wx');
+                fssync.writeSync(lockFd, JSON.stringify(lockData, null, 2));
+                fssync.closeSync(lockFd);
+                
+                console.log(`[Coordination] ✅ Leadership acquired exclusively: ${this.leaderId}`);
                 return true;
-            } else {
-                console.log(`[Coordination] ❌ Leadership acquisition failed - race condition detected`);
-                console.log(`[Coordination] Expected: ${this.leaderId}, Got: ${verifyLock?.leaderId}`);
-                return false;
+                
+            } catch (error: any) {
+                if (error.code === 'EEXIST') {
+                    // File already exists, someone else has the lock
+                    console.log(`[Coordination] ❌ Leadership acquisition failed - lock already exists`);
+                    return false;
+                } else {
+                    // Other error, rethrow
+                    throw error;
+                }
             }
 
         } catch (error) {
@@ -342,18 +345,35 @@ export class MultiWindowCoordinationManager extends EventEmitter {
     private async updateHeartbeat(): Promise<void> {
         if (this.role !== 'leader') return;
 
-        const lockData = await this.readLockFile();
-        if (!lockData || lockData.leaderId !== this.leaderId) {
-            // Lost leadership
-            console.log('[Coordination] ❌ Leadership lost during heartbeat');
-            this.emit('leadershipLost', { reason: 'Lock file changed' });
-            await this.becomeFollower();
-            return;
-        }
+        try {
+            const lockData = await this.readLockFile();
+            if (!lockData || lockData.leaderId !== this.leaderId) {
+                // Lost leadership
+                console.log('[Coordination] ❌ Leadership lost during heartbeat');
+                this.emit('leadershipLost', { reason: 'Lock file changed' });
+                await this.becomeFollower();
+                return;
+            }
 
-        // Update heartbeat timestamp
-        lockData.lastHeartbeat = Date.now();
-        fssync.writeFileSync(this.lockFilePath, JSON.stringify(lockData, null, 2));
+            // Update heartbeat timestamp
+            lockData.lastHeartbeat = Date.now();
+            fssync.writeFileSync(this.lockFilePath, JSON.stringify(lockData, null, 2));
+            
+            // Reset consecutive failures on successful heartbeat
+            this.consecutiveFailures = 0;
+            
+        } catch (error) {
+            console.error('[Coordination] Heartbeat update failed:', error);
+            this.consecutiveFailures++;
+            
+            // If heartbeat fails repeatedly, step down to allow failover
+            if (this.consecutiveFailures >= 3) {
+                console.warn('[Coordination] Too many heartbeat failures, stepping down as leader');
+                this.emit('leadershipLost', { reason: 'Heartbeat failures' });
+                await this.cleanupStaleLock();
+                await this.becomeFollower();
+            }
+        }
     }
 
     /**
@@ -365,10 +385,23 @@ export class MultiWindowCoordinationManager extends EventEmitter {
         this.lockRetryTimer = setInterval(async () => {
             try {
                 if (this.role === 'follower') {
-                    // Circuit breaker: stop retrying if too many failures
+                    // Circuit breaker with exponential backoff and recovery
                     if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
-                        console.warn('[Coordination] Too many failures, pausing leadership attempts');
-                        return;
+                        // Use exponential backoff: wait longer between attempts
+                        const backoffTime = Math.min(30000, 2000 * Math.pow(2, this.consecutiveFailures - this.MAX_CONSECUTIVE_FAILURES));
+                        const now = Date.now();
+                        
+                        if (!this.lastFailureTime) {
+                            this.lastFailureTime = now;
+                        }
+                        
+                        if (now - this.lastFailureTime < backoffTime) {
+                            console.warn(`[Coordination] Circuit breaker active, waiting ${backoffTime}ms before retry`);
+                            return;
+                        }
+                        
+                        console.log('[Coordination] Circuit breaker recovery attempt');
+                        this.lastFailureTime = now;
                     }
 
                     // Check if leader is still alive
@@ -379,14 +412,20 @@ export class MultiWindowCoordinationManager extends EventEmitter {
                         const acquired = await this.tryAcquireLeadership();
                         if (acquired) {
                             this.consecutiveFailures = 0; // Reset on success
+                            this.lastFailureTime = undefined;
                             await this.becomeLeader();
                         } else {
                             this.consecutiveFailures++;
                         }
+                    } else if (this.consecutiveFailures > 0) {
+                        // Leader is alive, reset failure count
+                        this.consecutiveFailures = 0;
+                        this.lastFailureTime = undefined;
                     }
                 }
             } catch (error) {
                 console.warn('[Coordination] Leadership monitoring error:', error);
+                this.consecutiveFailures++;
             }
         }, this.LOCK_RETRY_INTERVAL);
     }
@@ -614,3 +653,6 @@ export class MultiWindowCoordinationManager extends EventEmitter {
         return await this.tryAcquireLeadership();
     }
 }
+
+// Backwards compatibility alias
+export const MultiWindowCoordinationManager = MultiWorkspaceCoordinationManager;

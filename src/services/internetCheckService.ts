@@ -80,7 +80,7 @@ export class InternetCheckService extends EventEmitter {
     private static readonly INTERNET_STATE_KEY = 'healthWatch.internet.currentStatus';
 
     constructor(
-        private coordinationManager: MultiWindowCoordinationManager,
+        private coordinationManager: InstanceType<typeof MultiWindowCoordinationManager>,
         private storageManager: StorageManager
     ) {
         super();
@@ -149,15 +149,15 @@ export class InternetCheckService extends EventEmitter {
         });
 
         // Add listeners for all coordination events to debug
-        this.coordinationManager.on('leadershipAcquired', (data) => {
+        this.coordinationManager.on('leadershipAcquired', (data: { leaderId: string }) => {
             console.log('🌐 InternetCheckService: Received leadershipAcquired event:', data);
         });
         
-        this.coordinationManager.on('leadershipLost', (data) => {
+        this.coordinationManager.on('leadershipLost', (data: { reason: string }) => {
             console.log('🌐 InternetCheckService: Received leadershipLost event:', data);
         });
         
-        this.coordinationManager.on('coordinationError', (data) => {
+        this.coordinationManager.on('coordinationError', (data: { error: Error; context: string }) => {
             console.log('🌐 InternetCheckService: Received coordinationError event:', data);
         });
 
