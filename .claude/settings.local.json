@@ -23,7 +23,8 @@
       "Bash(npx tailwindcss init:*)",
       "Bash(code:*)",
       "Bash(npx vitest run:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": [],

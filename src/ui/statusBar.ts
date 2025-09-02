@@ -21,7 +21,7 @@ export class StatusBarManager {
     private debugMode: boolean = false;
     private internetService?: InternetCheckService;
     private currentInternetStatus?: InternetStatus;
-    private showCoordinationStatus: boolean = true;
+    private showCoordinationStatus: boolean = false;
 
     constructor(scheduler: Scheduler, internetService?: InternetCheckService) {
         this.scheduler = scheduler;
@@ -86,7 +86,7 @@ export class StatusBarManager {
 
     private createCoordinationStatusBarItem(): void {
         const config = vscode.workspace.getConfiguration('healthWatch.statusBar');
-        this.showCoordinationStatus = config.get('showCoordination', true);
+        this.showCoordinationStatus = config.get('showCoordination', false);
         
         if (!this.showCoordinationStatus || !(this.scheduler instanceof CoordinatedScheduler)) {
             return;

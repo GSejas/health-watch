@@ -8,6 +8,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.0.15] - 2025-09-02
+
+### Changed
+- Coordination status bar item is now hidden by default for cleaner UI
+- Multi-window coordination debug information is no longer shown to regular users
+- Users can still enable coordination status display via `healthWatch.statusBar.showCoordination: true`
+
+### Improved
+- Reduced visual clutter in status bar for better user experience
+- Technical coordination details are now opt-in rather than default
+
 ## [1.0.5] - 2025-08-20
 
 ### Added
